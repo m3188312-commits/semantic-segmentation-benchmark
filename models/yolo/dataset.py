@@ -5,7 +5,7 @@ import yaml
 from tqdm import tqdm
 
 # === CONFIGURATION ===
-ROOT_DIR    = Path("dataset")  # contains train/test/lowres
+ROOT_DIR    = Path(__file__).parent.parent.parent / "dataset"  # Fix path to work from yolo directory
 TOLERANCE   = 8                # color tolerance per channel (tight to catch subtle shades)
 MIN_AREA_PX = 10               # keep tiny regions
 MAX_PTS     = 1000             # cap polygon vertices to avoid pathological files

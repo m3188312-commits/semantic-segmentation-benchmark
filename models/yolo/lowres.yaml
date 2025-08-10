@@ -8,6 +8,6 @@ names:
 - Bareland
 - Water
 - Permanent Cultivation
-train: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\lowres\image
-val: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\test\image
-test: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\test\image
+train: ../../dataset/lowres/image
+val: ../../dataset/test/image
+test: ../../dataset/test/image
