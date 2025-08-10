@@ -1,0 +1,20 @@
+# models/yolo/configs/classes.yaml
+names:
+  - Unknown
+  - Artificial Land
+  - Woodland
+  - Arable Land
+  - Frygana
+  - Bareland
+  - Water
+  - Permanent Cultivation
+
+mask_color_map:
+  Unknown: "155,155,155"
+  Artificial Land: "226,169,41"
+  Woodland: "60,16,152"
+  Arable Land: "132,41,246"
+  Frygana: "0,255,0"
+  Bareland: "255,255,255"
+  Water: "0,0,255"
+  Permanent Cultivation: "255,255,0"

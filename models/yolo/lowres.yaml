@@ -1,0 +1,13 @@
+nc: 8
+names:
+- Unknown
+- Artificial Land
+- Woodland
+- Arable Land
+- Frygana
+- Bareland
+- Water
+- Permanent Cultivation
+train: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\lowres\image
+val: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\test\image
+test: C:\Users\bgat\Desktop\semantic-segmentation-benchmark\dataset\test\image
