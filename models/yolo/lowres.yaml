@@ -8,6 +8,6 @@ names:
 - Bareland
 - Water
 - Permanent Cultivation
-train: ../../dataset/lowres/image
-val: ../../dataset/test/image
-test: ../../dataset/test/image
+train: ../../dataset/lowres
+val: ../../dataset/test
+test: ../../dataset/test
