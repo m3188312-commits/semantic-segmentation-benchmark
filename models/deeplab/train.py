@@ -96,7 +96,8 @@ def main():
     scripts_dir = os.path.join(root, 'scripts')
 
     train_split(base, 'train',  scripts_dir)
-    train_split(base, 'lowres', scripts_dir)
+    # Removed lowres training as requested
+    # train_split(base, 'lowres', scripts_dir)
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
