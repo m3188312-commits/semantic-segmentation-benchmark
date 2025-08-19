@@ -1,6 +1,7 @@
 """
 Semantic Segmentation Dataset for DeepLab training.
 """
+import torch
 import os
 from glob import glob
 from typing import List, Tuple

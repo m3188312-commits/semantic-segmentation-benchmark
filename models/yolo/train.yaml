@@ -1,13 +1,14 @@
 nc: 8
 names:
-- Unknown
-- Artificial Land
-- Woodland
-- Arable Land
-- Frygana
-- Bareland
-- Water
-- Permanent Cultivation
+  - Unknown
+  - Artificial Land
+  - Woodland
+  - Arable Land
+  - Frygana
+  - Bareland
+  - Water
+  - Permanent Cultivation
+
 train: ../../dataset/train/image
 val: ../../dataset/test/image
 test: ../../dataset/test/image

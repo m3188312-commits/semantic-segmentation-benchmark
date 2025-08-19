@@ -1,4 +1,6 @@
-# train.py
+# models/deeplab/train.py
+# python -m models.deeplab.train
+
 import multiprocessing
 import os
 import copy
@@ -12,15 +14,14 @@ from torch.optim.lr_scheduler import StepLR
 from models.deeplab.dataset import SemanticSegmentationDataset
 from models.deeplab.model   import build_model
 
-
 # ─── Configuration ──────────────────────────────────
-device          = torch.device('cuda', index=0)  # enforce GPU
-batch_size      = 8      # see guidance below
-num_epochs      = 80
+device              = torch.device('cuda', index=0)  # enforce GPU
+batch_size          = 4
+num_epochs          = 80
 early_stop_patience = 10
-lr              = 1e-4
-train_val_split = 0.8
-num_workers     = 8
+lr                  = 1e-4
+train_val_split     = 0.8
+num_workers         = 0
 # ────────────────────────────────────────────────────
 
 def train_split(base_dir, split_name, scripts_dir):
@@ -28,14 +29,21 @@ def train_split(base_dir, split_name, scripts_dir):
     full_ds = SemanticSegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
     train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train])
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  num_workers=num_workers, pin_memory=True, prefetch_factor=2)
-    val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, prefetch_factor=2)
+
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True,
+        num_workers=num_workers, pin_memory=True
+    )
+    val_loader = DataLoader(
+        val_ds, batch_size=batch_size, shuffle=False,
+        num_workers=num_workers, pin_memory=True
+    )
 
     # Build model on GPU
     model     = build_model(device)
     criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr)      # AdamW often yields better generalization
-    scheduler = StepLR(optimizer, step_size=15, gamma=0.5)   # slower LR decay
+    optimizer = optim.AdamW(model.parameters(), lr=lr)
+    scheduler = StepLR(optimizer, step_size=15, gamma=0.5)
 
     best_wts    = copy.deepcopy(model.state_dict())
     best_loss   = float('inf')
@@ -95,8 +103,8 @@ def main():
     base        = os.path.join(root, 'dataset')
     scripts_dir = os.path.join(root, 'scripts')
 
-    train_split(base, 'train',  scripts_dir)
-    train_split(base, 'lowres', scripts_dir)
+    # Train only on the original training set
+    train_split(base, 'train', scripts_dir)
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()

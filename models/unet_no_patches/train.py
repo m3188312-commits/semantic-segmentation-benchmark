@@ -1,3 +1,7 @@
+# models/unet_no_patches/train.py
+# Run from repo root:
+#   python -m models.unet_no_patches.train
+
 import multiprocessing
 import os
 import copy
@@ -14,46 +18,48 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
 
 from models.unet_no_patches.dataset import UNetSegmentationDataset as SegmentationDataset
-from models.unet_no_patches.model import build_pretrained_unet as build_model
+from models.unet_no_patches.model   import build_pretrained_unet as build_model
 
 # ─── Configuration ──────────────────────────────────
-device               = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-batch_size           = 8
-num_epochs           = 80
-early_stop_patience  = 5
-lr                   = 1e-4
-train_val_split      = 0.8
-num_workers          = 8
+device              = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size          = 4
+num_epochs          = 80
+early_stop_patience = 5
+lr                  = 1e-4
+train_val_split     = 0.8
+num_workers         = 0     # Windows-friendly; no prefetch_factor
 # ────────────────────────────────────────────────────
 
-def train_split(base_dir, split_name, scripts_dir):
-    """Train U-Net on a specific split: 'train' or 'lowres'."""
+def train_split(base_dir: str, split_name: str, scripts_dir: str):
+    """Train U-Net on a specific split (here we'll call only 'train')."""
     # Dataset and DataLoaders
     full_ds = SegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
     train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train])
+
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
-        num_workers=num_workers, pin_memory=True, prefetch_factor=2
+        num_workers=num_workers, pin_memory=True
     )
     val_loader = DataLoader(
         val_ds, batch_size=batch_size, shuffle=False,
-        num_workers=num_workers, pin_memory=True, prefetch_factor=2
+        num_workers=num_workers, pin_memory=True
     )
 
     # Build model
-    model = build_model(device=device)
+    model     = build_model(device=device)
     criterion = nn.CrossEntropyLoss().to(device)
     optimizer = optim.AdamW(model.parameters(), lr=lr)
     scheduler = StepLR(optimizer, step_size=15, gamma=0.5)
 
-    best_wts = copy.deepcopy(model.state_dict())
+    best_wts  = copy.deepcopy(model.state_dict())
     best_loss = float('inf')
     epochs_no_improve = 0
 
-    # Prepare checkpoint path
+    # Checkpoint pathing
     os.makedirs(scripts_dir, exist_ok=True)
-    ckpt_path = os.path.join(scripts_dir, f'unet_{split_name}.pth')
+    ckpt_path  = os.path.join(scripts_dir, f'unet_train.pth')
+    final_path = os.path.join(scripts_dir, f'unet_train_final.pth')
 
     # Training loop
     for epoch in range(1, num_epochs + 1):
@@ -63,8 +69,8 @@ def train_split(base_dir, split_name, scripts_dir):
         for imgs, masks in train_loader:
             imgs, masks = imgs.to(device), masks.to(device)
             optimizer.zero_grad()
-            outputs = model(imgs)
-            loss = criterion(outputs, masks)
+            outputs = model(imgs)                 # (B, C, H, W)
+            loss    = criterion(outputs, masks)   # masks are (B, H, W) with class indices
             loss.backward()
             optimizer.step()
             running_train += loss.item() * imgs.size(0)
@@ -79,14 +85,13 @@ def train_split(base_dir, split_name, scripts_dir):
                 running_val += criterion(model(imgs), masks).item() * imgs.size(0)
         val_loss = running_val / len(val_loader.dataset)
 
-        # Logging
-        print(f"[{split_name}] Epoch {epoch:02d}/{num_epochs}  "
+        print(f"[train] Epoch {epoch:02d}/{num_epochs}  "
               f"Train: {train_loss:.4f}  Val: {val_loss:.4f}")
 
-        # — Early stopping —
+        # — Early stopping & checkpointing —
         if val_loss < best_loss:
             best_loss = val_loss
-            best_wts = copy.deepcopy(model.state_dict())
+            best_wts  = copy.deepcopy(model.state_dict())
             torch.save(best_wts, ckpt_path)
             print(f"  → New best, saved to {ckpt_path}")
             epochs_no_improve = 0
@@ -98,15 +103,16 @@ def train_split(base_dir, split_name, scripts_dir):
 
         scheduler.step()
 
+    # Finalize
+    torch.save(best_wts, final_path)
+    print(f"[train] Training complete. Final weights saved to {final_path}")
 
 def main():
-    # Define base dataset path and scripts dir
-    base_dir = os.path.join(PROJECT_ROOT, 'dataset')
-    scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
+    base_dir   = os.path.join(PROJECT_ROOT, 'dataset')
+    scripts_dir= os.path.join(PROJECT_ROOT, 'scripts')
 
-    # Run for 'train' and 'lowres'
+    # Train only on the original training set (no lowres)
     train_split(base_dir, 'train', scripts_dir)
-    train_split(base_dir, 'lowres', scripts_dir)
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
