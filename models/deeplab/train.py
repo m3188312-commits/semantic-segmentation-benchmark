@@ -103,14 +103,8 @@ def main():
     base        = os.path.join(root, 'dataset')
     scripts_dir = os.path.join(root, 'scripts')
 
-<<<<<<< HEAD
     # Train only on the original training set
     train_split(base, 'train', scripts_dir)
-=======
-    train_split(base, 'train',  scripts_dir)
-    # Removed lowres training as requested
-    # train_split(base, 'lowres', scripts_dir)
->>>>>>> 7049c64f4f20a1277151ee25b10ac3948734a6ad
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()
