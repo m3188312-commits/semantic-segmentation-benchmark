@@ -5,7 +5,7 @@ import segmentation_models_pytorch as smp
 def build_pretrained_unet(
     in_channels: int = 3,
     num_classes: int = 8,
-    encoder_name: str = 'resnet34',
+    encoder_name: str = 'resnet50',  # Better encoder for complex task
     encoder_weights: str = 'imagenet',
     device: str = 'cuda'
 ) -> torch.nn.Module:
@@ -14,7 +14,7 @@ def build_pretrained_unet(
 
     :param in_channels: Number of input channels (e.g., 3 for RGB images or 4 for multi-spectral).
     :param num_classes: Number of target segmentation classes.
-    :param encoder_name: Name of the encoder backbone (e.g., 'resnet34', 'efficientnet-b0').
+    :param encoder_name: Name of the encoder backbone (e.g., 'resnet50', 'efficientnet-b0').
     :param encoder_weights: Pretrained weights for the encoder. Use 'imagenet' or None.
     :param device: Compute device ('cuda' or 'cpu').
     :return: U-Net model moved to the specified device.
@@ -24,6 +24,9 @@ def build_pretrained_unet(
         encoder_weights=encoder_weights,
         in_channels=in_channels,
         classes=num_classes,
+        decoder_channels=(256, 128, 64, 32, 16),  # Better decoder
+        decoder_use_batchnorm=True,
+        decoder_attention_type='scse',  # Attention mechanism
     )
     return model.to(device)
 

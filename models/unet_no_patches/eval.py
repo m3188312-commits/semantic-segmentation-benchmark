@@ -36,7 +36,7 @@ CLASS_NAMES = ['Unknown','Artificial','Woodland','Arable','Frygana','Bareland','
 # Checkpoint filenames per split
 WEIGHTS = {
     'train':  'unet_train.pth',
-    'lowres': 'unet_lowres.pth',
+    'lowres': 'unet_train.pth',
     'test':   'unet_train.pth'
 }
 
@@ -71,8 +71,8 @@ def predict_split(model, img_dir: str, out_dir: str, single_image: str = None):
             img = Image.open(p).convert('RGB')
             inp = TF(img).unsqueeze(0).to(DEVICE)
             out = model(inp)
-            logits = out['out'] if isinstance(out, dict) else out
-            pred = logits[0].argmax(0).cpu().numpy()
+            # UNet returns tensor directly, not dict
+            pred = out[0].argmax(0).cpu().numpy()
             # Colorize
             h, w = pred.shape
             vis = np.zeros((h, w, 3), dtype=np.uint8)
@@ -135,8 +135,8 @@ def main():
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Only run on test set by default
-        splits = ['test']
+        # Run on both test and lowres sets by default
+        splits = ['test', 'lowres']
 
     results = {}
     for split in splits:

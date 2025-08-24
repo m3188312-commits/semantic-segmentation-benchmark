@@ -12,12 +12,12 @@ import torchvision.transforms as T
 IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg')
 COMMON_SIZE   = (512, 512)  # (width, height)
 CLASS_RGB     = {
-    (155,155,155): 0,    # Background
-    (226,169,41):  1,    # Urban
-    (60,16,152):   2,    # Vegetation
-    (132,41,246):  3,    # Agriculture
+    (155,155,155): 0,    # Unknown/Background
+    (226,169,41):  1,    # Artificial Land
+    (60,16,152):   2,    # Woodland
+    (132,41,246):  3,    # Arable Land
     (0,255,0):     4,    # Frygana
-    (255,255,255): 5,    # Bare land
+    (255,255,255): 5,    # Bareland
     (0,0,255):     6,    # Water
     (255,255,0):   7     # Permanent Cultivation
 }
@@ -67,6 +67,9 @@ class UNetSegmentationDataset(Dataset):
         # use default normalization if none provided
         self.transforms = transforms or T.Compose([
             T.Resize(COMMON_SIZE, interpolation=Image.BILINEAR),
+            T.RandomHorizontalFlip(p=0.5),  # Data augmentation
+            T.RandomRotation(degrees=10),   # Small rotations
+            T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),  # Color variation
             T.ToTensor(),
             T.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
         ])

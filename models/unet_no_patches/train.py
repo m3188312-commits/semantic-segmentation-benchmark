@@ -22,10 +22,10 @@ from models.unet_no_patches.model   import build_pretrained_unet as build_model
 
 # ─── Configuration ──────────────────────────────────
 device              = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-batch_size          = 4
-num_epochs          = 80
-early_stop_patience = 5
-lr                  = 1e-4
+batch_size          = 2  # Reduced for better stability
+num_epochs          = 100  # More epochs for complex task
+early_stop_patience = 15  # More patience
+lr                  = 5e-5  # Lower learning rate for stability
 train_val_split     = 0.8
 num_workers         = 0     # Windows-friendly; no prefetch_factor
 # ────────────────────────────────────────────────────
@@ -48,9 +48,26 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
 
     # Build model
     model     = build_model(device=device)
-    criterion = nn.CrossEntropyLoss().to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr)
-    scheduler = StepLR(optimizer, step_size=15, gamma=0.5)
+    
+    # Better loss function with class balancing
+    # Calculate class weights from training data
+    print("Calculating class weights...")
+    all_masks = []
+    for i in range(len(full_ds)):
+        _, mask = full_ds[i]
+        all_masks.append(mask.flatten())
+    
+    all_masks = torch.cat(all_masks)
+    class_counts = torch.bincount(all_masks, minlength=8)
+    class_weights = 1.0 / (class_counts + 1e-6)  # Avoid division by zero
+    class_weights = class_weights / class_weights.sum() * len(class_weights)  # Normalize
+    
+    print(f"Class counts: {class_counts}")
+    print(f"Class weights: {class_weights}")
+    
+    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device)).to(device)
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
 
     best_wts  = copy.deepcopy(model.state_dict())
     best_loss = float('inf')
@@ -58,8 +75,8 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
 
     # Checkpoint pathing
     os.makedirs(scripts_dir, exist_ok=True)
-    ckpt_path  = os.path.join(scripts_dir, f'unet_train.pth')
-    final_path = os.path.join(scripts_dir, f'unet_train_final.pth')
+    ckpt_path  = os.path.join(scripts_dir, 'unet_train.pth')
+    final_path = os.path.join(scripts_dir, 'unet_train.pth')
 
     # Training loop
     for epoch in range(1, num_epochs + 1):
@@ -101,7 +118,7 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
                 print(f"  → No improvement for {early_stop_patience} epochs; stopping.")
                 break
 
-        scheduler.step()
+        scheduler.step(val_loss)
 
     # Finalize
     torch.save(best_wts, final_path)
