@@ -1,3 +1,21 @@
+"""
+Usage examples:
+
+# Full pipeline (predict + evaluate) on test set
+python models/random_forest/eval.py
+
+# Evaluate only (use existing predictions)
+python models/random_forest/eval.py --evaluate
+
+# Predict only (generate segmentations)
+python models/random_forest/eval.py --predict
+
+# Single image (predict + evaluate)
+python models/random_forest/eval.py --single-image test 0000.jpg
+
+# Use custom model weights
+python models/random_forest/eval.py --evaluate --model_path path/to/weights.pkl
+"""
 import os
 import sys
 import argparse

@@ -18,10 +18,6 @@ from PIL import Image
 from sklearn.metrics import precision_recall_fscore_support
 import torch
 from torchvision import transforms as T
-from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
 
 # ─── Ensure project root on PYTHONPATH ─────────────────────────
 SCRIPT_DIR   = os.path.dirname(__file__)
@@ -120,53 +116,50 @@ def evaluate_split(pred_dir: str, img_dir: str, mask_dir: str, single_image: str
     return {'p': p, 'r': r, 'f1': f1}
 
 
-def generate_pdf(results: dict, out_path: str):
-    """Compile metric tables into a PDF."""
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    doc = SimpleDocTemplate(out_path, pagesize=letter)
-    elems = []
-    styles = getSampleStyleSheet()
 
-    for split, metrics in results.items():
-        elems.append(Paragraph(f"Metrics for '{split}'", styles['Heading2']))
-        data = [['Class','Precision','Recall','F1']]
-        for idx, name in enumerate(CLASS_NAMES):
-            data.append([
-                name,
-                f"{metrics['p'][idx]:.3f}",
-                f"{metrics['r'][idx]:.3f}",
-                f"{metrics['f1'][idx]:.3f}"
-            ])
-        table = Table(data)
-        table.setStyle([
-            ('BACKGROUND',(0,0),(-1,0),colors.lightgrey),
-            ('GRID',(0,0),(-1,-1),0.5,colors.black),
-            ('ALIGN',(1,1),(-1,-1),'RIGHT')
-        ])
-        elems.append(table)
-        elems.append(Spacer(1,12))
-
-    doc.build(elems)
-    print(f"[INFO] PDF report generated at {out_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="U-Net eval: predict + evaluate + PDF")
+    parser = argparse.ArgumentParser(description="U-Net eval: predict + evaluate with terminal output")
     parser.add_argument('--predict', action='store_true', help='only generate masks')
     parser.add_argument('--evaluate', action='store_true', help='only compute metrics')
     parser.add_argument('--single-image', nargs=2, metavar=('SPLIT','IMAGE'),
                         help='evaluate one image in dataset/<split>/image')
+    parser.add_argument('--model_path', type=str, help='path to model weights file')
     args = parser.parse_args()
 
     do_pred = args.predict or not args.evaluate
     do_eval = args.evaluate or not args.predict
 
+    # Determine which splits to process
+    if args.single_image:
+        splits = [args.single_image[0]]
+    else:
+        # Only run on test set by default
+        splits = ['test']
+
     results = {}
-    for split in ['train','lowres','test']:
-        print(f"\n=== [{split.upper()}] Loading {WEIGHTS[split]} ===")
+    for split in splits:
+        # Determine model weights path
+        if args.model_path:
+            weights_path = args.model_path
+        else:
+            # Look for weights in scripts folder
+            weights_path = os.path.join(PROJECT_ROOT, 'scripts', WEIGHTS.get(split, 'unet_train.pth'))
+        
+        if not os.path.exists(weights_path):
+            print(f"❌ Model weights not found at: {weights_path}")
+            print("Available files in scripts folder:")
+            scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
+            if os.path.exists(scripts_dir):
+                for f in os.listdir(scripts_dir):
+                    if f.endswith('.pth'):
+                        print(f"  - {f}")
+            continue
+            
+        print(f"\n=== [{split.upper()}] Loading {os.path.basename(weights_path)} ===")
         model = build_pretrained_unet(in_channels=3, num_classes=len(CLASS_RGB), device=DEVICE)
-        ckpt = os.path.join(PROJECT_ROOT, 'scripts', WEIGHTS[split])
-        model.load_state_dict(torch.load(ckpt, map_location=DEVICE))
+        model.load_state_dict(torch.load(weights_path, map_location=DEVICE))
         model.to(DEVICE)
 
         img_dir  = os.path.join(PROJECT_ROOT, 'dataset', split, 'image')
@@ -179,20 +172,32 @@ def main():
                     predict_split(model, img_dir, pred_dir, single_image=args.single_image[1])
                 if do_eval:
                     m = evaluate_split(pred_dir, img_dir, mask_dir, single_image=args.single_image[1])
-                    # Print per-class metrics
+                    print(f"\n📊 Metrics for '{args.single_image[1]}' in split '{split}':")
+                    print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
+                    print('-'*30)
                     for i, name in enumerate(CLASS_NAMES):
-                        print(f"{name:<12} P={m['p'][i]:.3f} R={m['r'][i]:.3f} F1={m['f1'][i]:.3f}")
-            return
+                        print(f"{name:<12}{m['p'][i]:6.3f}{m['r'][i]:6.3f}{m['f1'][i]:6.3f}")
+                return
 
         if do_pred:
             predict_split(model, img_dir, pred_dir)
         if do_eval:
             print(f"Evaluating '{split}'...")
-            results[split] = evaluate_split(pred_dir, img_dir, mask_dir)
-
-    if do_eval and not args.single_image:
-        pdf_path = os.path.join(PROJECT_ROOT, 'evaluations', 'unet_metrics.pdf')
-        generate_pdf(results, pdf_path)
+            res = evaluate_split(pred_dir, img_dir, mask_dir)
+            results[split] = res
+            
+            # Print metrics to terminal
+            print(f"\n📊 Metrics for '{split}':")
+            print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
+            print('-'*30)
+            for i, name in enumerate(CLASS_NAMES):
+                print(f"{name:<12}{res['p'][i]:6.3f}{res['r'][i]:6.3f}{res['f1'][i]:6.3f}")
+    
+    # Print summary if multiple splits
+    if len(results) > 1:
+        print(f"\n📋 SUMMARY:")
+        for split, res in results.items():
+            print(f"{split}: P={res['p'].mean():.3f}, R={res['r'].mean():.3f}, F1={res['f1'].mean():.3f}")
 
 if __name__ == '__main__':
     main()
