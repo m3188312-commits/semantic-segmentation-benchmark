@@ -106,6 +106,8 @@ python models/random_forest/eval.py
 python models/yolo/eval.py
 ```
 
+**Note**: By default, all models evaluate on **train**, **test**, and **lowres** datasets.
+
 ### Evaluate Only (Requires existing predictions)
 ```bash
 python models/unet_no_patches/eval.py --evaluate
@@ -185,6 +187,7 @@ The project includes a complete pipeline for using unlabeled data:
 
 ### Multi-Split Evaluation
 Models can be evaluated on multiple dataset splits:
+- **Train set**: Training data evaluation (overfitting check)
 - **Test set**: Standard evaluation
 - **Lowres set**: Lower resolution images
 - **Custom splits**: User-defined data splits
