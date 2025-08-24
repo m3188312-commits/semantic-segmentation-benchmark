@@ -67,9 +67,6 @@ class UNetSegmentationDataset(Dataset):
         # use default normalization if none provided
         self.transforms = transforms or T.Compose([
             T.Resize(COMMON_SIZE, interpolation=Image.BILINEAR),
-            T.RandomHorizontalFlip(p=0.5),  # Data augmentation
-            T.RandomRotation(degrees=10),   # Small rotations
-            T.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),  # Color variation
             T.ToTensor(),
             T.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
         ])
