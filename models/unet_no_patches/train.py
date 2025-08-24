@@ -24,7 +24,7 @@ from models.unet_no_patches.model   import build_pretrained_unet as build_model
 device              = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 batch_size          = 2  # Reduced for better stability
 num_epochs          = 100  # More epochs for complex task
-early_stop_patience = 15  # More patience
+early_stop_patience = 7  # More patience
 lr                  = 5e-5  # Lower learning rate for stability
 train_val_split     = 0.8
 num_workers         = 0     # Windows-friendly; no prefetch_factor
