@@ -70,17 +70,28 @@ class UNetSegmentationDataset(Dataset):
                 A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),     # (H, W)
                 A.HorizontalFlip(p=0.5),
                 A.VerticalFlip(p=0.5),
-                A.ShiftScaleRotate(shift_limit=0.05, scale_limit=0.1,
-                                   rotate_limit=15, border_mode=0, p=0.5),
+                A.Affine(translate_percent=0.05, scale=(0.9, 1.1),
+                        rotate=(-15, 15), p=0.5),  # Correct Affine parameters
                 A.RandomBrightnessContrast(p=0.3),
                 A.Normalize(mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)),
                 ToTensorV2(),
+            ])
+            # Separate mask transforms (no normalization, no ToTensor)
+            self.mask_transforms = A.Compose([
+                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.Affine(translate_percent=0.05, scale=(0.9, 1.1),
+                        rotate=(-15, 15), p=0.5),
             ])
         else:
             self.transforms = A.Compose([
                 A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
                 A.Normalize(mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)),
                 ToTensorV2(),
+            ])
+            self.mask_transforms = A.Compose([
+                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
             ])
 
     def __len__(self) -> int:
@@ -91,9 +102,11 @@ class UNetSegmentationDataset(Dataset):
         img = np.array(Image.open(self.img_paths[idx]).convert('RGB'))
         mask = np.array(Image.open(self.mask_paths[idx]).convert('RGB'))
 
-        transformed = self.transforms(image=img, mask=mask)
-        img, mask = transformed["image"], transformed["mask"]
-
-        # convert RGB mask to class indices
-        mask_idx = rgb_to_mask(Image.fromarray(mask))
-        return img, torch.from_numpy(mask_idx).long()
+        # Apply transforms separately
+        img_transformed = self.transforms(image=img)["image"]
+        mask_transformed = self.mask_transforms(image=mask)["image"]
+        
+        # Convert RGB mask to class indices
+        mask_idx = rgb_to_mask(Image.fromarray(mask_transformed))
+        
+        return img_transformed, torch.from_numpy(mask_idx).long()
