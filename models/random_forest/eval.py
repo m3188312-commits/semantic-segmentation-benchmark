@@ -5,10 +5,6 @@ import numpy as np
 from glob import glob
 from PIL import Image
 from sklearn.metrics import precision_recall_fscore_support
-from reportlab.platypus import SimpleDocTemplate, Table, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
 
 # Ensure project root is on PYTHONPATH so imports resolve
 SCRIPT_DIR = os.path.dirname(__file__)
@@ -103,43 +99,22 @@ def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_imag
     return {'p': p, 'r': r, 'f1': f1}
 
 
-def generate_pdf(results: dict, out_path: str):
-    """Generate a PDF report with metric tables for each split."""
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    doc = SimpleDocTemplate(out_path, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
 
-    for split, metrics in results.items():
-        elements.append(Paragraph(f"Metrics for '{split}'", styles['Heading2']))
-        data = [['Class', 'Precision', 'Recall', 'F1']]
-        for idx, name in enumerate(CLASS_NAMES):
-            data.append([
-                name,
-                f"{metrics['p'][idx]:.3f}",
-                f"{metrics['r'][idx]:.3f}",
-                f"{metrics['f1'][idx]:.3f}"
-            ])
-        table = Table(data)
-        table.setStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('ALIGN', (1, 1), (-1, -1), 'RIGHT')
-        ])
-        elements.append(table)
-        elements.append(Spacer(1, 12))
-
-    doc.build(elements)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="RF evaluation: predict+evaluate on train, lowres, test."
+        description="RF evaluation: predict+evaluate with terminal output."
     )
     parser.add_argument(
-        "--evaluate-only",
+        "--evaluate",
         action="store_true",
         help="Skip prediction; only compute metrics."
+    )
+    parser.add_argument(
+        "--predict",
+        action="store_true",
+        help="Only generate segmentations."
     )
     parser.add_argument(
         "--single-image",
@@ -147,45 +122,87 @@ def main():
         metavar=('SPLIT', 'IMAGE'),
         help="Evaluate a single IMAGE from SPLIT (train, lowres, test)."
     )
+    parser.add_argument(
+        "--model_path",
+        type=str,
+        help="path to model weights file"
+    )
     args = parser.parse_args()
+    
+    do_pred = args.predict or not args.evaluate
+    do_eval = args.evaluate or not args.predict
 
     data_root = os.path.join(PROJECT_ROOT, 'dataset')
     scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
     preds_root = os.path.join(PROJECT_ROOT, 'predictions', 'random_forest')
 
-    weight_map = {
-        'train': 'rf_model_train.pkl',
-        'lowres': 'rf_model_lowres.pkl',
-        'test': 'rf_model_train.pkl'
-    }
+    # Determine which splits to process
+    if args.single_image:
+        splits = [args.single_image[0]]
+    else:
+        # Only run on test set by default
+        splits = ['test']
 
     # Single-image mode
     if args.single_image:
         split, img_name = args.single_image
-        if split not in weight_map:
+        if split not in ['train', 'lowres', 'test']:
             print(f"Invalid split '{split}'. Choose from train, lowres, test.")
             sys.exit(1)
-        model_path = os.path.join(scripts_dir, weight_map[split])
+            
+        # Determine model weights path
+        if args.model_path:
+            model_path = args.model_path
+        else:
+            # Look for weights in scripts folder
+            model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
+        
+        if not os.path.exists(model_path):
+            print(f"❌ Model weights not found at: {model_path}")
+            print("Available files in scripts folder:")
+            if os.path.exists(scripts_dir):
+                for f in os.listdir(scripts_dir):
+                    if f.endswith('.pkl'):
+                        print(f"  - {f}")
+            sys.exit(1)
+            
         clf = load_model(model_path)
         img_dir = os.path.join(data_root, split, 'image')
         mask_dir = os.path.join(data_root, split, 'mask')
         if not os.path.isdir(mask_dir):
             mask_dir = os.path.join(data_root, split, 'masks')
         pred_dir = os.path.join(preds_root, split)
-        if not args.evaluate_only:
+        
+        if do_pred:
             predict_and_save(clf, img_dir, pred_dir, single_image=img_name)
-        metrics = evaluate_split(pred_dir, img_dir, mask_dir, single_image=img_name)
-        print(f"Metrics for '{img_name}' in split '{split}':")
-        print(f"{'Class':<12}{'P':>8}{'R':>8}{'F1':>8}")
-        print('-'*36)
-        for idx, name in enumerate(CLASS_NAMES):
-            print(f"{name:<12}{metrics['p'][idx]:8.3f}{metrics['r'][idx]:8.3f}{metrics['f1'][idx]:8.3f}")
+        if do_eval:
+            metrics = evaluate_split(pred_dir, img_dir, mask_dir, single_image=img_name)
+            print(f"\n📊 Metrics for '{img_name}' in split '{split}':")
+            print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
+            print('-'*30)
+            for idx, name in enumerate(CLASS_NAMES):
+                print(f"{name:<12}{metrics['p'][idx]:6.3f}{metrics['r'][idx]:6.3f}{metrics['f1'][idx]:6.3f}")
         return
 
     # Full evaluation mode
     results = {}
-    for split in ['train', 'lowres', 'test']:
-        model_path = os.path.join(scripts_dir, weight_map[split])
+    for split in splits:
+        # Determine model weights path
+        if args.model_path:
+            model_path = args.model_path
+        else:
+            # Look for weights in scripts folder
+            model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
+        
+        if not os.path.exists(model_path):
+            print(f"❌ Model weights not found at: {model_path}")
+            print("Available files in scripts folder:")
+            if os.path.exists(scripts_dir):
+                for f in os.listdir(scripts_dir):
+                    if f.endswith('.pkl'):
+                        print(f"  - {f}")
+            continue
+            
         clf = load_model(model_path)
         img_dir = os.path.join(data_root, split, 'image')
         mask_dir = os.path.join(data_root, split, 'mask')
@@ -193,15 +210,26 @@ def main():
             mask_dir = os.path.join(data_root, split, 'masks')
         pred_dir = os.path.join(preds_root, split)
 
-        if not args.evaluate_only:
+        if do_pred:
             print(f"Generating predictions for '{split}' → {pred_dir}")
             predict_and_save(clf, img_dir, pred_dir)
-        print(f"Computing metrics for '{split}'")
-        results[split] = evaluate_split(pred_dir, img_dir, mask_dir)
-
-    pdf_path = os.path.join(PROJECT_ROOT, 'evaluations', 'rf_metrics.pdf')
-    generate_pdf(results, pdf_path)
-    print(f"PDF report written to {pdf_path}")
+        if do_eval:
+            print(f"Computing metrics for '{split}'")
+            res = evaluate_split(pred_dir, img_dir, mask_dir)
+            results[split] = res
+            
+            # Print metrics to terminal
+            print(f"\n📊 Metrics for '{split}':")
+            print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
+            print('-'*30)
+            for idx, name in enumerate(CLASS_NAMES):
+                print(f"{name:<12}{res['p'][idx]:6.3f}{res['r'][idx]:6.3f}{res['f1'][idx]:6.3f}")
+    
+    # Print summary if multiple splits
+    if len(results) > 1:
+        print(f"\n📋 SUMMARY:")
+        for split, res in results.items():
+            print(f"{split}: P={res['p'].mean():.3f}, R={res['r'].mean():.3f}, F1={res['f1'].mean():.3f}")
 
 if __name__ == '__main__':
     main()
