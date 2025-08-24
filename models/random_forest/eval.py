@@ -158,8 +158,8 @@ def main():
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Only run on test set by default
-        splits = ['test']
+        # Run on both test and lowres sets by default
+        splits = ['test', 'lowres']
 
     # Single-image mode
     if args.single_image:

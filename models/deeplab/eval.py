@@ -47,7 +47,7 @@ CLASS_NAMES = [
 
 WEIGHTS = {
     'train':  'deeplab_train.pth',
-    'lowres': 'deeplab_lowres.pth',
+    'lowres': 'deeplab_train.pth',
     'test':   'deeplab_train.pth'
 }
 
@@ -132,8 +132,8 @@ def main():
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Only run on test set by default
-        splits = ['test']
+        # Run on both test and lowres sets by default
+        splits = ['test', 'lowres']
 
     results = {}
     for split in splits:
