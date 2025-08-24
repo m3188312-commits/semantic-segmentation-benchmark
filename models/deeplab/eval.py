@@ -132,8 +132,8 @@ def main():
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Run on both test and lowres sets by default
-        splits = ['test', 'lowres']
+        # Run on train, test and lowres sets by default
+        splits = ['train', 'test', 'lowres']
 
     results = {}
     for split in splits:
