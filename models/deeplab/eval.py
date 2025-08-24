@@ -2,13 +2,13 @@
 DeepLab Evaluation Script
 
 Usage:
-  # Full pipeline: predict + evaluate + PDF
+  # Full pipeline: predict + evaluate 
   python models/deeplab/eval.py
 
   # Predict-only (generate segmentations)
   python models/deeplab/eval.py --predict
 
-  # Evaluate-only (use existing segmentations) + PDF
+  # Evaluate-only (use existing segmentations) 
   python models/deeplab/eval.py --evaluate
 
   # Single-image evaluation with new prediction
