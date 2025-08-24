@@ -1,0 +1,50 @@
+{
+  "case_name": "case_10_2_keep",
+  "img_count": 10,
+  "agreement": 2,
+  "unknown_handling": "keep",
+  "training_results": {
+    "deeplab": "success",
+    "unet": "success",
+    "yolo": "success",
+    "rf": "success"
+  },
+  "evaluation_results": {
+    "deeplab": "success",
+    "unet": "success",
+    "yolo": "success",
+    "rf": "success"
+  },
+  "metrics": {
+    "deeplab": {
+      "precision": 0.75,
+      "recall": 0.74,
+      "f1_score": 0.73,
+      "accuracy": 0.8400000000000001,
+      "iou": 0.65
+    },
+    "unet": {
+      "precision": 0.84,
+      "recall": 0.73,
+      "f1_score": 0.74,
+      "accuracy": 0.79,
+      "iou": 0.6900000000000001
+    },
+    "yolo": {
+      "precision": 0.75,
+      "recall": 0.76,
+      "f1_score": 0.73,
+      "accuracy": 0.78,
+      "iou": 0.65
+    },
+    "rf": {
+      "precision": 0.78,
+      "recall": 0.73,
+      "f1_score": 0.74,
+      "accuracy": 0.79,
+      "iou": 0.78
+    }
+  },
+  "execution_time": 4.02579927444458,
+  "note": "This is a simulation run on Mac. Real training will be done on CUDA machine."
+}
