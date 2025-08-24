@@ -33,7 +33,7 @@ num_workers         = 0     # Windows-friendly; no prefetch_factor
 def train_split(base_dir: str, split_name: str, scripts_dir: str):
     """Train U-Net on a specific split (here we'll call only 'train')."""
     # Dataset and DataLoaders
-    full_ds = SegmentationDataset(base_dir, split_name, augment=True)  # Enable augmentations for training
+    full_ds = SegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
     train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train])
 

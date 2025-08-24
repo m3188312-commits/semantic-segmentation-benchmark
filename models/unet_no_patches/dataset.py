@@ -6,8 +6,7 @@ import numpy as np
 from PIL import Image
 import torch
 from torch.utils.data import Dataset
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
+import torchvision.transforms as T
 
 # --- Config ---
 IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg')
@@ -52,7 +51,7 @@ class UNetSegmentationDataset(Dataset):
         self,
         base_dir: str,
         split: str,
-        augment: bool = True
+        transforms: T.Compose = None
     ):
         img_dir  = os.path.join(base_dir, split, 'image')
         mask_dir = os.path.join(base_dir, split, 'mask')
@@ -65,48 +64,25 @@ class UNetSegmentationDataset(Dataset):
                 f"{len(self.img_paths)} images vs {len(self.mask_paths)} masks"
             )
 
-        if augment:
-            self.transforms = A.Compose([
-                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),     # (H, W)
-                A.HorizontalFlip(p=0.5),
-                A.VerticalFlip(p=0.5),
-                A.Affine(translate_percent=0.05, scale=(0.9, 1.1),
-                        rotate=(-15, 15), p=0.5),  # Correct Affine parameters
-                A.RandomBrightnessContrast(p=0.3),
-                A.Normalize(mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)),
-                ToTensorV2(),
-            ])
-            # Separate mask transforms (no normalization, no ToTensor)
-            self.mask_transforms = A.Compose([
-                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
-                A.HorizontalFlip(p=0.5),
-                A.VerticalFlip(p=0.5),
-                A.Affine(translate_percent=0.05, scale=(0.9, 1.1),
-                        rotate=(-15, 15), p=0.5),
-            ])
-        else:
-            self.transforms = A.Compose([
-                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
-                A.Normalize(mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)),
-                ToTensorV2(),
-            ])
-            self.mask_transforms = A.Compose([
-                A.Resize(COMMON_SIZE[1], COMMON_SIZE[0]),
-            ])
+        # use default normalization if none provided
+        self.transforms = transforms or T.Compose([
+            T.Resize(COMMON_SIZE, interpolation=Image.BILINEAR),
+            T.ToTensor(),
+            T.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
+        ])
 
     def __len__(self) -> int:
         return len(self.img_paths)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        # load & preprocess image and mask
-        img = np.array(Image.open(self.img_paths[idx]).convert('RGB'))
-        mask = np.array(Image.open(self.mask_paths[idx]).convert('RGB'))
+        # load & preprocess image
+        img = Image.open(self.img_paths[idx]).convert('RGB')
+        img = self.transforms(img)
 
-        # Apply transforms separately
-        img_transformed = self.transforms(image=img)["image"]
-        mask_transformed = self.mask_transforms(image=mask)["image"]
-        
-        # Convert RGB mask to class indices
-        mask_idx = rgb_to_mask(Image.fromarray(mask_transformed))
-        
-        return img_transformed, torch.from_numpy(mask_idx).long()
+        # load & preprocess mask
+        mask = Image.open(self.mask_paths[idx]).convert('RGB')
+        mask = mask.resize(COMMON_SIZE, resample=Image.NEAREST)
+        mask_idx = rgb_to_mask(mask)
+        mask_tensor = torch.from_numpy(mask_idx).long()
+
+        return img, mask_tensor
