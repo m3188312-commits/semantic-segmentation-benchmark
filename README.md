@@ -1,192 +1,212 @@
-# Semantic Segmentation Benchmark for Satellite Data
+# Semantic Segmentation Benchmark
 
-This project implements and benchmarks multiple semantic segmentation models for satellite imagery, specifically designed for 8 land cover classes.
+A comprehensive benchmark for semantic segmentation using multiple deep learning architectures and traditional machine learning approaches.
 
-## 🎯 Classes
+## 🎯 Project Overview
 
-1. **Unknown** - Unclassified areas
-2. **Artificial Land** - Urban areas, buildings, roads
-3. **Woodland** - Forest and wooded areas
-4. **Arable Land** - Agricultural fields
-5. **Frygana** - Mediterranean shrubland
-6. **Bareland** - Exposed soil/rock
-7. **Water** - Lakes, rivers, sea
-8. **Permanent Cultivation** - Orchards, vineyards
+This project implements and evaluates various semantic segmentation models on satellite imagery data, focusing on land use classification. The goal is to compare different approaches and provide a robust framework for semantic segmentation tasks.
+
+## 🏗️ Architecture
+
+### Deep Learning Models
+- **U-Net**: Vanilla U-Net with ResNet34 encoder
+- **DeepLab**: DeepLab v3+ architecture
+- **YOLO**: YOLOv8 adapted for segmentation
+- **Random Forest**: Traditional ML approach for comparison
+
+### Dataset Structure
+```
+dataset/
+├── train/          # Training images and masks
+├── test/           # Test images and masks  
+├── lowres/         # Low-resolution images and masks
+└── unlabeled/      # Unlabeled images for pseudo-labeling
+```
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### Prerequisites
+- Python 3.8+
+- CUDA 12.1+ (for GPU training)
+- 8GB+ GPU memory recommended
 
-```bash
-# Install using pip
-pip install -r requirements.txt
+### Installation
 
-# Or install using setup.py
-pip install -e .
-```
-
-### 2. Prepare Dataset
-
-Your dataset should have the following structure:
-```
-dataset/
-├── train/
-│   ├── image/     # Training images (.jpg, .png)
-│   ├── mask/      # Ground truth masks (.png)
-│   └── labels/    # Generated YOLO labels (.txt)
-├── test/
-│   ├── image/     # Test images
-│   ├── mask/      # Test masks
-│   └── labels/    # Test labels
-└── lowres/
-    ├── image/     # Low resolution images
-    ├── mask/      # Low resolution masks
-    └── labels/    # Low resolution labels
-```
-
-### 3. Convert Masks to YOLO Format
-
-```bash
-cd models/yolo
-python dataset.py
-```
-
-This script will:
-- Convert your mask images to YOLO polygon format
-- Generate label files for each split
-- Handle color tolerance for accurate class detection
-
-### 4. Train YOLO Model
-
-```bash
-# Train on full resolution data
-python train.py
-
-# Or train individual models
-python -c "
-from train import train_model
-train_model(
-    data_yaml='train.yaml',
-    save_path='yolo_train.pt',
-    epochs=100,
-    imgsz=640,
-    batch=8
-)
-"
-```
-
-## 🔧 Model Configurations
-
-### YOLO Configuration
-
-- **Base Model**: YOLOv8n-seg (nano segmentation model)
-- **Image Size**: 640x640 pixels
-- **Batch Size**: 8 (adjust based on GPU memory)
-- **Epochs**: 100 with early stopping (patience=10)
-- **Optimizer**: AdamW with learning rate 0.01
-- **Loss Weights**: Optimized for segmentation tasks
-
-### Training Parameters
-
-The training script includes several optimizations:
-- **Warmup**: 3 epochs with momentum scheduling
-- **Label Smoothing**: Disabled for precise segmentation
-- **Mask Overlap**: Enabled for better mask quality
-- **Dropout**: Configurable regularization
-
-## 📊 Performance Monitoring
-
-Training progress is automatically logged and includes:
-- Loss curves (box, cls, dfl, pose)
-- Validation metrics (mAP, precision, recall)
-- Learning rate scheduling
-- Early stopping based on validation performance
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **"No module named 'ultralytics'"**
+1. **Clone the repository**
    ```bash
-   pip install ultralytics>=8.0.0
+   git clone https://github.com/aggelosntou/semantic-segmentation-benchmark.git
+   cd semantic-segmentation-benchmark
    ```
 
-2. **CUDA out of memory**
-   - Reduce batch size in `train.py`
-   - Use smaller image size (e.g., 512 instead of 640)
-   - Use CPU training: `device="cpu"`
+2. **Create virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-3. **Dataset not found**
-   - Ensure you're running from the project root
-   - Check that `dataset/` directory exists
-   - Verify mask files are in PNG format
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-4. **Poor training results**
-   - Check class balance in your dataset
-   - Verify mask quality and color accuracy
-   - Increase training epochs
-   - Use data augmentation
+### CUDA Installation (GPU Users)
 
-### Validation
+For CUDA 12.1 support, install PyTorch with:
+```bash
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
 
-Before training, the script validates:
-- Dataset directory structure
-- Presence of label files
-- YAML configuration files
-- Required dependencies
+## 📊 Model Training
+
+### U-Net Training
+```bash
+cd models/unet_no_patches
+python train.py
+```
+
+**Configuration:**
+- Batch size: 8
+- Learning rate: 1e-3
+- Epochs: 100
+- Early stopping patience: 7
+- Encoder: ResNet34 (ImageNet pretrained)
+
+### DeepLab Training
+```bash
+cd models/deeplab
+python train.py
+```
+
+### YOLO Training
+```bash
+cd models/yolo
+python train.py
+```
+
+### Random Forest Training
+```bash
+cd models/random_forest
+python train.py
+```
+
+## 🔍 Model Evaluation
+
+### Full Pipeline (Predict + Evaluate)
+```bash
+# U-Net
+python models/unet_no_patches/eval.py
+
+# DeepLab  
+python models/deeplab/eval.py
+
+# Random Forest
+python models/random_forest/eval.py
+
+# YOLO
+python models/yolo/eval.py
+```
+
+### Evaluate Only (Requires existing predictions)
+```bash
+python models/unet_no_patches/eval.py --evaluate
+```
+
+### Predict Only
+```bash
+python models/unet_no_patches/eval.py --predict
+```
+
+### Single Image Evaluation
+```bash
+python models/unet_no_patches/eval.py --single-image test 0000.jpg
+```
+
+### Custom Model Path
+```bash
+python models/unet_no_patches/eval.py --model_path /path/to/model.pth
+```
+
+## 📈 Evaluation Metrics
+
+All models output the following metrics to terminal:
+- **Precision**: Per-class precision scores
+- **Recall**: Per-class recall scores  
+- **F1-Score**: Per-class F1 scores
+- **Summary**: Average metrics across all classes
+
+## 🏷️ Class Labels
+
+The dataset contains 8 land use classes:
+1. **Unknown/Background** (155, 155, 155)
+2. **Artificial Land** (226, 169, 41)
+3. **Woodland** (60, 16, 152)
+4. **Arable Land** (132, 41, 246)
+5. **Frygana** (0, 255, 0)
+6. **Bareland** (255, 255, 255)
+7. **Water** (0, 0, 255)
+8. **Permanent Cultivation** (255, 255, 0)
+
+## 🔧 Configuration
+
+### Training Parameters
+- **Batch Size**: Configurable per model
+- **Learning Rate**: Adaptive learning rate with schedulers
+- **Early Stopping**: Prevents overfitting
+- **Class Balancing**: Automatic class weight calculation
+
+### Data Preprocessing
+- **Image Size**: 512x512 pixels
+- **Normalization**: ImageNet mean/std values
+- **Augmentation**: Basic transforms (resize, normalize, ToTensor)
 
 ## 📁 Project Structure
 
 ```
-├── models/
-│   ├── yolo/           # YOLO implementation
-│   ├── unet_patches/   # U-Net with patches
-│   ├── unet_no_patches/# U-Net without patches
-│   ├── deeplab/        # DeepLab implementation
-│   └── random_forest/  # Random Forest baseline
-├── dataset/            # Training and test data
-├── evaluations/        # Model performance metrics
-└── scripts/           # Utility scripts
+semantic-segmentation-benchmark/
+├── models/                 # Model implementations
+│   ├── unet_no_patches/   # U-Net model
+│   ├── deeplab/           # DeepLab model
+│   ├── yolo/              # YOLO model
+│   └── random_forest/     # Random Forest model
+├── dataset/               # Dataset files
+├── scripts/               # Utility scripts
+├── predictions/           # Model predictions
+├── evaluations/           # Evaluation results
+└── requirements.txt       # Dependencies
 ```
 
-## 🔬 Advanced Usage
+## 🚀 Advanced Usage
 
-### Custom Training
+### Pseudo-Labeling Pipeline
+The project includes a complete pipeline for using unlabeled data:
+1. Generate predictions from multiple models
+2. Build consensus masks with agreement thresholds
+3. Evaluate different pseudo-labeling strategies
 
-```python
-from models.yolo.train import train_model
+### Multi-Split Evaluation
+Models can be evaluated on multiple dataset splits:
+- **Test set**: Standard evaluation
+- **Lowres set**: Lower resolution images
+- **Custom splits**: User-defined data splits
 
-# Custom configuration
-train_model(
-    data_yaml='custom.yaml',
-    save_path='custom_model.pt',
-    epochs=200,
-    imgsz=1024,
-    batch=4,
-    device="0",  # GPU 0
-    patience=20,
-    base_model="yolov8s-seg.pt"  # Small model
-)
-```
+## 🐛 Troubleshooting
 
-### Multi-GPU Training
+### Common Issues
+1. **CUDA Out of Memory**: Reduce batch size
+2. **Import Errors**: Ensure virtual environment is activated
+3. **Model Not Found**: Check model weights path in scripts folder
 
-```python
-# Use multiple GPUs
-train_model(
-    data_yaml='train.yaml',
-    save_path='multi_gpu.pt',
-    device="0,1,2,3"  # Use GPUs 0,1,2,3
-)
-```
+### GPU Requirements
+- **Minimum**: 4GB GPU memory
+- **Recommended**: 8GB+ GPU memory
+- **CUDA Version**: 12.1+ for optimal performance
 
-## 📈 Expected Results
+## 📚 References
 
-With proper training, you should expect:
-- **mAP@0.5**: 0.7-0.9 for well-defined classes
-- **mAP@0.5:0.95**: 0.4-0.7 overall
-- **Training Time**: 2-8 hours on modern GPU
-- **Model Size**: ~6MB (YOLOv8n-seg)
+- **U-Net**: [U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/abs/1505.04597)
+- **DeepLab**: [DeepLab: Semantic Image Segmentation with Deep Convolutional Nets](https://arxiv.org/abs/1606.00915)
+- **YOLO**: [YOLOv8: You Only Look Once](https://github.com/ultralytics/ultralytics)
+- **Random Forest**: [Random Forests](https://link.springer.com/article/10.1023/A:1010933404324)
 
 ## 🤝 Contributing
 
@@ -200,8 +220,16 @@ With proper training, you should expect:
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## 👥 Authors
+
+- **Aggelos Ntou** - Initial work
+
 ## 🙏 Acknowledgments
 
-- YOLO implementation based on Ultralytics
-- Dataset structure inspired by COCO format
-- Satellite imagery processing best practices
+- PyTorch team for the deep learning framework
+- Segmentation Models PyTorch for model implementations
+- Ultralytics for YOLO implementation
+
+---
+
+**Note**: This project is designed for research and educational purposes. Ensure you have proper licenses for any datasets used.
