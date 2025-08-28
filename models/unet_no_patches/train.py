@@ -5,37 +5,50 @@
 import multiprocessing
 import os
 import copy
+import random
+import numpy as np
 from torch.utils.data import random_split, DataLoader
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim.lr_scheduler import StepLR
 
 # Ensure project root on PYTHONPATH for relative imports
 import sys
-SCRIPT_DIR   = os.path.dirname(__file__)
+
+SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
 
 from models.unet_no_patches.dataset import UNetSegmentationDataset as SegmentationDataset
-from models.unet_no_patches.model   import build_pretrained_unet as build_model
+from models.unet_no_patches.model import build_pretrained_unet as build_model
+
+# ─── Reproducibility ──────────────────────────────────
+SEED = 42
+torch.manual_seed(SEED)
+np.random.seed(SEED)
+random.seed(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+# ──────────────────────────────────────────────────────
 
 # ─── Configuration ──────────────────────────────────
-device              = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-batch_size          = 8  # Reduced for better stability
-num_epochs          = 100  # More epochs for complex task
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+batch_size = 8    # Reduced for better stability
+num_epochs = 100  # More epochs for complex task
 early_stop_patience = 7  # More patience
-lr                  = 1e-3  # Lower learning rate for stability
-train_val_split     = 0.8
-num_workers         = 0     # Windows-friendly; no prefetch_factor
+lr = 1e-4         # Lower learning rate for stability
+train_val_split = 0.8
+num_workers = 0   # Windows-friendly; no prefetch_factor
+NUM_CLASSES = 8   # We know from CLASS_RGB
 # ────────────────────────────────────────────────────
 
 def train_split(base_dir: str, split_name: str, scripts_dir: str):
     """Train U-Net on a specific split (here we'll call only 'train')."""
-    # Dataset and DataLoaders
+    # Dataset and deterministic split
     full_ds = SegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
-    train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train])
+    g = torch.Generator().manual_seed(SEED)
+    train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train], generator=g)
 
     train_loader = DataLoader(
         train_ds, batch_size=batch_size, shuffle=True,
@@ -47,35 +60,34 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
     )
 
     # Build model
-    model     = build_model(device=device)
-    
-    # Better loss function with class balancing
-    # Calculate class weights from training data
-    print("Calculating class weights...")
-    all_masks = []
-    for i in range(len(full_ds)):
-        _, mask = full_ds[i]
-        all_masks.append(mask.flatten())
-    
-    all_masks = torch.cat(all_masks)
-    class_counts = torch.bincount(all_masks, minlength=8)
-    class_weights = 1.0 / (class_counts + 1e-6)  # Avoid division by zero
-    class_weights = class_weights / class_weights.sum() * len(class_weights)  # Normalize
-    
-    print(f"Class counts: {class_counts}")
-    print(f"Class weights: {class_weights}")
-    
-    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device)).to(device)
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=10)
+    model = build_model(device=device)
 
-    best_wts  = copy.deepcopy(model.state_dict())
+    # Better loss function with class balancing
+    print("Calculating class weights from training set...")
+    all_masks = []
+    for i in range(len(train_ds)):
+        _, mask = train_ds[i]
+        all_masks.append(mask.flatten())
+
+    all_masks = torch.cat(all_masks)
+    class_counts = torch.bincount(all_masks, minlength=NUM_CLASSES)
+    class_weights = 1.0 / (class_counts + 1e-6)  # Avoid division by zero
+    class_weights = class_weights / class_weights.sum() * NUM_CLASSES  # Normalize
+
+    print(f"Class counts (train only): {class_counts}")
+    print(f"Class weights: {class_weights}")
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights.to(device)).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
+
+    best_wts = copy.deepcopy(model.state_dict())
     best_loss = float('inf')
     epochs_no_improve = 0
 
     # Checkpoint pathing
     os.makedirs(scripts_dir, exist_ok=True)
-    ckpt_path  = os.path.join(scripts_dir, 'unet_train.pth')
+    ckpt_path = os.path.join(scripts_dir, 'unet_train.pth')
     final_path = os.path.join(scripts_dir, 'unet_train.pth')
 
     # Training loop
@@ -86,8 +98,8 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
         for imgs, masks in train_loader:
             imgs, masks = imgs.to(device), masks.to(device)
             optimizer.zero_grad()
-            outputs = model(imgs)                 # (B, C, H, W)
-            loss    = criterion(outputs, masks)   # masks are (B, H, W) with class indices
+            outputs = model(imgs)  # (B, C, H, W)
+            loss = criterion(outputs, masks)  # masks are (B, H, W) with class indices
             loss.backward()
             optimizer.step()
             running_train += loss.item() * imgs.size(0)
@@ -108,7 +120,7 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
         # — Early stopping & checkpointing —
         if val_loss < best_loss:
             best_loss = val_loss
-            best_wts  = copy.deepcopy(model.state_dict())
+            best_wts = copy.deepcopy(model.state_dict())
             torch.save(best_wts, ckpt_path)
             print(f"  → New best, saved to {ckpt_path}")
             epochs_no_improve = 0
@@ -118,18 +130,21 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
                 print(f"  → No improvement for {early_stop_patience} epochs; stopping.")
                 break
 
-        scheduler.step(val_loss)
+        # Step scheduler every epoch
+        scheduler.step()
 
     # Finalize
     torch.save(best_wts, final_path)
     print(f"[train] Training complete. Final weights saved to {final_path}")
 
+
 def main():
-    base_dir   = os.path.join(PROJECT_ROOT, 'dataset')
-    scripts_dir= os.path.join(PROJECT_ROOT, 'scripts')
+    base_dir = os.path.join(PROJECT_ROOT, 'dataset')
+    scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
 
     # Train only on the original training set
     train_split(base_dir, 'train', scripts_dir)
+
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()

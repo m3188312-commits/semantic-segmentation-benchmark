@@ -1,6 +1,4 @@
 # Core deep learning
-torch>=2.1.0+cu121
-torchvision>=0.16.0+cu121
 segmentation-models-pytorch>=0.3.0
 
 # YOLO training
