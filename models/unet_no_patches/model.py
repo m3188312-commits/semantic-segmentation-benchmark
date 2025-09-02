@@ -5,7 +5,7 @@ import segmentation_models_pytorch as smp
 def build_pretrained_unet(
     in_channels: int = 3,
     num_classes: int = 8,
-    encoder_name: str = 'resnet34',  # Simple encoder
+    encoder_name: str = 'resnet34',  
     encoder_weights: str = 'imagenet',
     device: str = 'cuda'
 ) -> torch.nn.Module:
