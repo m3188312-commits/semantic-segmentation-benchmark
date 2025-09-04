@@ -7,6 +7,7 @@ Runs 18 training/evaluation cases: 3 K values × 3 N values × 2 variants + base
 import argparse
 import json
 import csv
+import copy
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
 import numpy as np
@@ -53,6 +54,7 @@ IMAGE_SIZE = (512, 512)
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-4
 NUM_EPOCHS = 50
+EARLY_STOP_PATIENCE = 10  # Stop if no improvement for 10 epochs
 
 # Class mapping
 CLASS_RGB = {
@@ -254,8 +256,8 @@ def build_subset(K: int, N: int, variant: str) -> Tuple[List[Path], List[Path]]:
 
 def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str, 
                 num_epochs: int = NUM_EPOCHS, batch_size: int = BATCH_SIZE, 
-                learning_rate: float = LEARNING_RATE) -> nn.Module:
-    """Train DeepLab model on given dataset."""
+                learning_rate: float = LEARNING_RATE, early_stop_patience: int = 10) -> nn.Module:
+    """Train DeepLab model on given dataset with early stopping."""
     logger.info(f"Training model for run: {run_id}")
     
     # Create dataset and dataloader
@@ -266,6 +268,11 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
     model = build_deeplab_model(NUM_CLASSES).to(DEVICE)
     criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore padding
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    # Early stopping variables
+    best_loss = float('inf')
+    patience_counter = 0
+    best_model_state = None
     
     # Training loop
     model.train()
@@ -292,6 +299,25 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
         
         avg_loss = epoch_loss / num_batches
         logger.info(f"  Epoch {epoch+1}/{num_epochs} completed. Average Loss: {avg_loss:.4f}")
+        
+        # Early stopping logic
+        if avg_loss < best_loss:
+            best_loss = avg_loss
+            patience_counter = 0
+            best_model_state = copy.deepcopy(model.state_dict())
+            logger.info(f"  New best loss: {best_loss:.4f}")
+        else:
+            patience_counter += 1
+            logger.info(f"  No improvement for {patience_counter} epochs (patience: {early_stop_patience})")
+            
+            if patience_counter >= early_stop_patience:
+                logger.info(f"  Early stopping triggered after {epoch+1} epochs")
+                break
+    
+    # Load best model state
+    if best_model_state is not None:
+        model.load_state_dict(best_model_state)
+        logger.info(f"Loaded best model with loss: {best_loss:.4f}")
     
     # Save model checkpoint
     checkpoint_path = Path("checkpoints") / f"{run_id}.pth"
@@ -410,7 +436,7 @@ def main():
         logger.info("="*80)
         
         baseline_images, baseline_masks = build_subset(K=0, N=2, variant="no-remove")  # K=0 means no pseudo-images
-        baseline_model = train_model(baseline_images, baseline_masks, "baseline", num_epochs, batch_size, learning_rate)
+        baseline_model = train_model(baseline_images, baseline_masks, "baseline", num_epochs, batch_size, learning_rate, EARLY_STOP_PATIENCE)
         baseline_metrics = evaluate_model(baseline_model, test_loader)
         
         results.append({
@@ -444,7 +470,7 @@ def main():
                     image_paths, mask_paths = build_subset(K, N, variant)
                     
                     # Train model
-                    model = train_model(image_paths, mask_paths, run_id, num_epochs, batch_size, learning_rate)
+                    model = train_model(image_paths, mask_paths, run_id, num_epochs, batch_size, learning_rate, EARLY_STOP_PATIENCE)
                     
                     # Evaluate model
                     metrics = evaluate_model(model, test_loader)
