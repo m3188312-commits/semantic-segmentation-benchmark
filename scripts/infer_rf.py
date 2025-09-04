@@ -12,7 +12,7 @@ from models.random_forest.dataset import extract_features, COLOR2CLASS
 # === Paths ===
 WEIGHTS = Path("scripts/rf_model_train.pkl")       # adjust if needed
 LIST    = Path("data/unlabeled_100_list.txt")      # one path per line (full or filename)
-BASE    = Path("dataset/unlabeled/image")          # used if LIST has bare filenames
+BASE    = Path("data/unlabeled")                  # used if LIST has bare filenames
 
 OUT_MASK_ID  = Path("outputs/unlabeled_preds/rf/masks")      # uint8 [0..7]
 OUT_MASK_VIS = Path("outputs/unlabeled_preds/rf/masks_vis")  # RGB visualization
@@ -48,14 +48,17 @@ def main():
         p = Path(e)
         paths.append(p if p.is_absolute() or (len(p.parts) > 0 and p.parts[0] == "dataset") else (BASE / p))
 
+    TARGET_SIZE = (512, 512)  # (width, height)
+
     for p in paths:
         if not p.exists():
             print(f"[WARN] missing image: {p} — skipping")
             continue
 
-        # Load image and extract per-pixel features
+        # Load image, resize to target size, and extract per-pixel features
         img = Image.open(p).convert("RGB")
-        arr = np.array(img, dtype=np.uint8)                # (H,W,3)
+        img_resized = img.resize(TARGET_SIZE, resample=Image.BILINEAR)
+        arr = np.array(img_resized, dtype=np.uint8)        # (H,W,3) at TARGET_SIZE
         feats = extract_features(arr)                      # (H,W,F)
         H, W, F = feats.shape
         X = feats.reshape(-1, F)

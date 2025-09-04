@@ -12,12 +12,15 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 CKPT   = Path('scripts/deeplab_train.pth')
 
 LIST   = Path('data/unlabeled_100_list.txt')            # one path per line (full or filename)
-BASE   = Path('dataset/unlabeled/image')                # used if LIST has bare filenames
+BASE   = Path('data/unlabeled')                        # used if LIST has bare filenames
 
 OUT_MASK_ID  = Path('outputs/unlabeled_preds/deeplab/masks')      # uint8 [0..7]
 OUT_MASK_VIS = Path('outputs/unlabeled_preds/deeplab/masks_vis')  # RGB visualization
 
+TARGET_SIZE = (512, 512)  # (width, height)
+
 tfm = T.Compose([
+    T.Resize(TARGET_SIZE, interpolation=Image.BILINEAR),
     T.ToTensor(),
     T.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
 ])

@@ -39,7 +39,7 @@ def consensus(masks: list[np.ndarray], k: int, n_classes: int = 8) -> np.ndarray
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ks",          default="2,3,4", help="comma-separated K values (agreement thresholds)")
-    ap.add_argument("--unlabeled",   default="dataset/unlabeled/image", help="folder with unlabeled images")
+    ap.add_argument("--unlabeled",   default="data/unlabeled", help="folder with unlabeled images")
     ap.add_argument("--deeplab",     default="outputs/unlabeled_preds/deeplab/masks")
     ap.add_argument("--unet",        default="outputs/unlabeled_preds/unet/masks")
     ap.add_argument("--yolo",        default="outputs/unlabeled_preds/yolo/masks")

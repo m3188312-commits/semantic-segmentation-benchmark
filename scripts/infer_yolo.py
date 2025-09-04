@@ -10,7 +10,7 @@ from models.deeplab.dataset import CLASS_RGB  # reuse your palette
 
 WEIGHTS = Path("scripts/yolo_train.pt")
 LIST    = Path("data/unlabeled_100_list.txt")
-BASE    = Path("dataset/unlabeled/image")
+BASE    = Path("data/unlabeled")
 
 OUT_MASK_ID  = Path("outputs/unlabeled_preds/yolo/masks")
 OUT_MASK_VIS = Path("outputs/unlabeled_preds/yolo/masks_vis")
@@ -27,11 +27,13 @@ def colorize_ids(idmask: np.ndarray) -> np.ndarray:
         rgb[idmask == cls] = col
     return rgb
 
-def upsample_to(img_h, img_w, m: np.ndarray) -> np.ndarray:
-    """Nearest-neighbor upsample of a (h,w) float/bool mask to (img_h,img_w)."""
+TARGET_SIZE = (512, 512)  # (width, height)
+
+def upsample_to(target_h, target_w, m: np.ndarray) -> np.ndarray:
+    """Nearest-neighbor upsample of a (h,w) float/bool mask to (target_h,target_w)."""
     # m is float [0,1] or bool; convert to uint8 image for PIL resize
     m_u8 = (m > 0.5).astype(np.uint8) * 255
-    m_resized = Image.fromarray(m_u8, mode="L").resize((img_w, img_h), resample=Image.NEAREST)
+    m_resized = Image.fromarray(m_u8, mode="L").resize((target_w, target_h), resample=Image.NEAREST)
     return np.array(m_resized, dtype=np.uint8) > 0
 
 def main():
@@ -55,11 +57,12 @@ def main():
             continue
 
         res = model.predict(source=str(p), imgsz=640, verbose=False)[0]
-        H, W = res.orig_shape
+        # Always use TARGET_SIZE for consistent output
+        H, W = TARGET_SIZE[1], TARGET_SIZE[0]  # height, width
         sem = np.zeros((H, W), dtype=np.uint8)  # Unknown=0
 
         if res.masks is not None and res.boxes is not None and len(res.masks.data) > 0:
-            # res.masks.data: (N, h, w) at model scale; must upsample to (H, W)
+            # res.masks.data: (N, h, w) at model scale; must upsample to TARGET_SIZE
             masks_np = res.masks.data.cpu().numpy()           # float [0..1], shape (N,h,w)
             cls_ids  = res.boxes.cls.cpu().numpy().astype(np.int64)  # (N,)
             for mi, cls in zip(masks_np, cls_ids):

@@ -10,13 +10,15 @@ from models.deeplab.dataset         import CLASS_RGB  # reuse palette
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 CKPT   = Path('scripts/unet_train.pth')    # adjust if needed
 LIST   = Path('data/unlabeled_100_list.txt')
-BASE   = Path('dataset/unlabeled/image')
+BASE   = Path('data/unlabeled')
 
 OUT_MASK_ID  = Path('outputs/unlabeled_preds/unet/masks')
 OUT_MASK_VIS = Path('outputs/unlabeled_preds/unet/masks_vis')
 
+TARGET_SIZE = (512, 512)  # (width, height)
+
 tfm = T.Compose([
-    T.Resize(COMMON_SIZE, interpolation=Image.BILINEAR),
+    T.Resize(TARGET_SIZE, interpolation=Image.BILINEAR),
     T.ToTensor(),
     T.Normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])
 ])
