@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-YOLO Evaluation Script (mirroring other models' pipeline)
+YOLO Evaluation Script
 
 Usage:
   # Full pipeline: predict + evaluate
@@ -33,7 +32,6 @@ import torch
 from pathlib import Path
 import cv2
 
-# Ensure project root on PYTHONPATH
 SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
@@ -96,11 +94,11 @@ def predict_split(model, img_dir, out_dir, single_image=None, conf=0.01, imgsz=6
     model.eval()
     
     for p in paths:
-        # Load image
+        
         img = np.array(Image.open(p).convert('RGB'))
         H, W = img.shape[:2]
         
-        # Run prediction
+        
         results = model.predict(
             source=img, 
             task="segment", 
@@ -139,7 +137,6 @@ def predict_split(model, img_dir, out_dir, single_image=None, conf=0.01, imgsz=6
         for cls_idx, rgb in inv_map.items():
             vis[pred_idx == cls_idx] = rgb
         
-        # Save RGB mask
         name = os.path.basename(p).rsplit('.', 1)[0] + '.png'
         Image.fromarray(vis).save(os.path.join(out_dir, name))
     
@@ -261,14 +258,14 @@ def main():
                 res = evaluate_split(pred_dir, img_dir, mask_dir)
                 results[split] = res
                 
-                # Print metrics to terminal
+                
                 print(f"\n📊 Metrics for '{split}':")
                 print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
                 print('-'*30)
                 for i, n in enumerate(CLASS_NAMES): 
                     print(f"{n:<12}{res['p'][i]:6.3f}{res['r'][i]:6.3f}{res['f1'][i]:6.3f}")
     
-    # Print summary if multiple splits
+    
     if len(results) > 1:
         print(f"\n📋 SUMMARY:")
         for split, res in results.items():

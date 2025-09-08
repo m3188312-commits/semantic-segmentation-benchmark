@@ -24,7 +24,7 @@ from glob import glob
 from PIL import Image
 from sklearn.metrics import precision_recall_fscore_support
 
-# Ensure project root is on PYTHONPATH so imports resolve
+
 SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
@@ -44,7 +44,6 @@ CLASS_NAMES = [
 
 
 def predict_and_save(clf, img_dir: str, out_dir: str, single_image: str = None):
-    """Run inference on images and save RGB masks."""
     os.makedirs(out_dir, exist_ok=True)
     inv_map = {v: k for k, v in COLOR2CLASS.items()}
 
@@ -74,8 +73,7 @@ def predict_and_save(clf, img_dir: str, out_dir: str, single_image: str = None):
 
 
 def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_image: str = None):
-    """Compute precision, recall, and F1 for predictions vs. ground truth."""
-    # Batch mode: load all GT masks
+   
     if single_image is None:
         _, true_masks = load_dataset(gt_img_dir, gt_mask_dir)
         pred_paths = sorted(glob(os.path.join(pred_dir, '*.png')))
@@ -92,9 +90,7 @@ def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_imag
         y_true = np.hstack(y_true)
         y_pred = np.hstack(y_pred)
     else:
-        # Single-image mode: load GT mask and prediction directly
         base = os.path.splitext(single_image)[0]
-        # Find GT mask file
         gt_pattern = os.path.join(gt_mask_dir, base + '.*')
         gt_files = glob(gt_pattern)
         if not gt_files:
@@ -102,13 +98,11 @@ def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_imag
         gt_path = gt_files[0]
         gt_mask = rgb_to_mask(np.array(Image.open(gt_path).convert('RGB')))
         y_true = gt_mask.flatten()
-        # Prediction mask is always .png
         pred_path = os.path.join(pred_dir, base + '.png')
         if not os.path.isfile(pred_path):
             raise FileNotFoundError(f"No prediction found for {single_image} in {pred_dir}")
         pred_mask = rgb_to_mask(np.array(Image.open(pred_path).convert('RGB')))
         y_pred = pred_mask.flatten()
-    # Compute metrics
     p, r, f1, _ = precision_recall_fscore_support(
         y_true, y_pred,
         labels=list(range(len(CLASS_NAMES))),
@@ -154,25 +148,23 @@ def main():
     scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
     preds_root = os.path.join(PROJECT_ROOT, 'predictions', 'random_forest')
 
-    # Determine which splits to process
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Run on train, test and lowres sets by default
         splits = ['train', 'test', 'lowres']
 
-    # Single-image mode
+    
     if args.single_image:
         split, img_name = args.single_image
         if split not in ['train', 'lowres', 'test']:
             print(f"Invalid split '{split}'. Choose from train, lowres, test.")
             sys.exit(1)
             
-        # Determine model weights path
+        
         if args.model_path:
             model_path = args.model_path
         else:
-            # Look for weights in scripts folder
+            
             model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
         
         if not os.path.exists(model_path):
@@ -202,14 +194,11 @@ def main():
                 print(f"{name:<12}{metrics['p'][idx]:6.3f}{metrics['r'][idx]:6.3f}{metrics['f1'][idx]:6.3f}")
         return
 
-    # Full evaluation mode
     results = {}
     for split in splits:
-        # Determine model weights path
         if args.model_path:
             model_path = args.model_path
         else:
-            # Look for weights in scripts folder
             model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
         
         if not os.path.exists(model_path):
@@ -236,14 +225,12 @@ def main():
             res = evaluate_split(pred_dir, img_dir, mask_dir)
             results[split] = res
             
-            # Print metrics to terminal
             print(f"\n📊 Metrics for '{split}':")
             print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
             print('-'*30)
             for idx, name in enumerate(CLASS_NAMES):
                 print(f"{name:<12}{res['p'][idx]:6.3f}{res['r'][idx]:6.3f}{res['f1'][idx]:6.3f}")
     
-    # Print summary if multiple splits
     if len(results) > 1:
         print(f"\n📋 SUMMARY:")
         for split, res in results.items():

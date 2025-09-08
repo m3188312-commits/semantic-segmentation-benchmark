@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Analyze and visualize pseudo-labeling experiment results.
 """
@@ -31,7 +30,7 @@ def print_summary_table(df: pd.DataFrame):
         print(f"   Run ID: {best['run_id']}")
         print(f"   Config: K={best['K']}, N={best['N']}, variant={best['variant']}")
         
-        # Compare with baseline if available
+        # Compare with baseline 
         baseline = df[df['run_id'] == 'baseline']
         if not baseline.empty:
             baseline_f1 = baseline['f1'].iloc[0]
@@ -53,7 +52,6 @@ def create_visualizations(df: pd.DataFrame, output_dir: str = "plots"):
         print("No experiment data to plot (only baseline found)")
         return
     
-    # Set up the plotting style
     plt.style.use('default')
     sns.set_palette("husl")
     
@@ -90,7 +88,7 @@ def create_visualizations(df: pd.DataFrame, output_dir: str = "plots"):
     ax.legend(title='Variant')
     ax.grid(True, alpha=0.3)
     
-    # Rotate x-axis labels for better readability
+    # Rotate x-axis labels
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(output_path / 'variant_comparison.png', dpi=300, bbox_inches='tight')

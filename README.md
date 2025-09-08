@@ -19,19 +19,13 @@ pip install -r requirements.txt
 ```
 
 For GPU training:
-```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-```
+
 
 ## Training
 
 Train individual models:
-```bash
-cd models/unet_no_patches && python train.py
-cd models/deeplab && python train.py
-cd models/yolo && python train.py
-cd models/random_forest && python train.py
-```
+python models/#model/train.py
 
 ## Semi-Supervised Learning (Pseudo-Labeling)
 
@@ -44,9 +38,8 @@ This project includes a complete semi-supervised learning pipeline using model a
 4. **Train DeepLab** with different pseudo-labeling strategies
 
 ### Run Experiments
-```bash
 python run_experiments.py
-```
+
 
 This runs 18 pseudo-labeling experiments + baseline with combinations of:
 - **Pseudo images**: 10, 50, 100 (selected by highest coverage)
@@ -67,14 +60,10 @@ python scripts/infer_rf.py
 ```
 
 2. **Build consensus masks**:
-```bash
 python scripts/build_consensus.py
-```
 
 3. **Run experiments**:
-```bash
 python pseudo_labeling_experiments.py
-```
 
 ## Evaluation
 
@@ -120,8 +109,3 @@ masks_agree{2,3,4}/ # Consensus masks (agreement ≥ N models)
 - Comprehensive pseudo-labeling pipeline
 - Automated evaluation metrics (precision, recall, F1)
 
-## Requirements
-
-- Python 3.8+
-- CUDA 12.1+ (for GPU)
-- 8GB+ GPU memory recommended

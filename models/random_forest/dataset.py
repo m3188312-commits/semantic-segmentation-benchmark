@@ -3,7 +3,6 @@ import os
 import numpy as np
 from skimage import io, color, filters, feature
 
-# --- Class mapping ---
 COLOR2CLASS = {
     (155, 155, 155): 0,  # Unknown
     (226, 169, 41):   1,  # Artificial Land
@@ -19,9 +18,6 @@ IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.tif', '.tiff')
 
 
 def list_image_files(directory: str):
-    """
-    List and sort all image files in a directory by common extensions.
-    """
     files = []
     for f in os.listdir(directory):
         if f.lower().endswith(IMG_EXTENSIONS):
@@ -30,9 +26,6 @@ def list_image_files(directory: str):
 
 
 def rgb_to_mask(label_img: np.ndarray) -> np.ndarray:
-    """
-    Convert an RGB mask image to a 2D array of class indices.
-    """
     h, w, _ = label_img.shape
     mask = np.zeros((h, w), dtype=np.int64)
     for col, cls in COLOR2CLASS.items():
@@ -41,10 +34,6 @@ def rgb_to_mask(label_img: np.ndarray) -> np.ndarray:
 
 
 def load_dataset(img_dir: str, mask_dir: str):
-    """
-    Read images and corresponding RGB masks; return lists of numpy arrays.
-    Supports multiple image formats.
-    """
     img_paths = list_image_files(img_dir)
     mask_paths = list_image_files(mask_dir)
 

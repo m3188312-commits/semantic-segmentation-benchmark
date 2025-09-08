@@ -3,9 +3,6 @@ from sklearn.ensemble import RandomForestClassifier
 
 
 def get_model(n_estimators=100, max_depth=20, n_jobs=-1, random_state=42):
-    """
-    Instantiate a RandomForestClassifier for segmentation.
-    """
     return RandomForestClassifier(
         n_estimators=n_estimators,
         max_depth=max_depth,

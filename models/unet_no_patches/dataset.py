@@ -10,7 +10,7 @@ import torchvision.transforms as T
 
 # --- Config ---
 IMG_EXTENSIONS = ('.png', '.jpg', '.jpeg')
-COMMON_SIZE   = (512, 512)  # (width, height)
+COMMON_SIZE   = (512, 512)     
 CLASS_RGB     = {
     (155,155,155): 0,    # Unknown/Background
     (226,169,41):  1,    # Artificial Land
@@ -24,16 +24,12 @@ CLASS_RGB     = {
 NUM_CLASSES = len(CLASS_RGB)
 
 def list_files(directory: str) -> List[str]:
-    """Return sorted list of all image files under `directory`."""
     files = []
     for ext in IMG_EXTENSIONS:
         files.extend(glob(os.path.join(directory, f'*{ext}')))
     return sorted(files)
 
 def rgb_to_mask(mask: Image.Image) -> np.ndarray:
-    """
-    Convert a color-coded PIL mask → H×W numpy array of class-indices.
-    """
     arr = np.array(mask)
     h, w = arr.shape[:2]
     mask_idx = np.zeros((h, w), dtype=np.int64)
@@ -42,11 +38,6 @@ def rgb_to_mask(mask: Image.Image) -> np.ndarray:
     return mask_idx
 
 class UNetSegmentationDataset(Dataset):
-    """
-    BaseDir/ ├─ train/ ├─ image/ ├─ mask/
-              ├─ lowres/ ├─ image/ ├─ mask/
-              └─ test/  ├─ image/ ├─ mask/
-    """
     def __init__(
         self,
         base_dir: str,
@@ -64,7 +55,6 @@ class UNetSegmentationDataset(Dataset):
                 f"{len(self.img_paths)} images vs {len(self.mask_paths)} masks"
             )
 
-        # use default normalization if none provided
         self.transforms = transforms or T.Compose([
             T.Resize(COMMON_SIZE, interpolation=Image.BILINEAR),
             T.ToTensor(),
@@ -75,11 +65,9 @@ class UNetSegmentationDataset(Dataset):
         return len(self.img_paths)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        # load & preprocess image
         img = Image.open(self.img_paths[idx]).convert('RGB')
         img = self.transforms(img)
 
-        # load & preprocess mask
         mask = Image.open(self.mask_paths[idx]).convert('RGB')
         mask = mask.resize(COMMON_SIZE, resample=Image.NEAREST)
         mask_idx = rgb_to_mask(mask)

@@ -7,13 +7,11 @@ from .dataset import load_dataset, prepare_training_data
 from .model   import get_model, save_model
 
 def main():
-    # Repo root = two levels up from this file
     root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
     base = os.path.join(root, 'dataset')
     scripts_dir = os.path.join(root, 'scripts')
     os.makedirs(scripts_dir, exist_ok=True)
 
-    # Train only on the original training set
     train_img_dir  = os.path.join(base, 'train', 'image')
     train_mask_dir = os.path.join(base, 'train', 'mask')
     print(f"[RF] Loading train split:")
@@ -24,7 +22,7 @@ def main():
     X, y = prepare_training_data(images, masks)
     print(f"[RF] Prepared features: X={X.shape}, y={y.shape}")
 
-    clf = get_model()  # defaults defined in models/random_forest/model.py
+    clf = get_model()  
     print("[RF] Fitting RandomForestClassifier on train split...")
     clf.fit(X, y)
 

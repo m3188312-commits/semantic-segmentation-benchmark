@@ -1,6 +1,4 @@
-# models/unet_no_patches/train.py
-# Run from repo root:
-#   python -m models.unet_no_patches.train
+# To run: python models/unet_no_patches/train.py 
 
 import multiprocessing
 import os
@@ -12,7 +10,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-# Ensure project root on PYTHONPATH for relative imports
 import sys
 
 SCRIPT_DIR = os.path.dirname(__file__)
@@ -22,29 +19,26 @@ sys.path.insert(0, PROJECT_ROOT)
 from models.unet_no_patches.dataset import UNetSegmentationDataset as SegmentationDataset
 from models.unet_no_patches.model import build_pretrained_unet as build_model
 
-# ─── Reproducibility ──────────────────────────────────
+
 SEED = 42
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
-# ──────────────────────────────────────────────────────
 
-# ─── Configuration ──────────────────────────────────
+
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-batch_size = 8    # Reduced for better stability
-num_epochs = 100  # More epochs for complex task
-early_stop_patience = 7  # More patience
-lr = 1e-4         # Lower learning rate for stability
+batch_size = 8    
+num_epochs = 100  
+early_stop_patience = 7  
+lr = 1e-4         
 train_val_split = 0.8
-num_workers = 0   # Windows-friendly; no prefetch_factor
-NUM_CLASSES = 8   # We know from CLASS_RGB
-# ────────────────────────────────────────────────────
+num_workers = 0   
+NUM_CLASSES = 8         
 
 def train_split(base_dir: str, split_name: str, scripts_dir: str):
-    """Train U-Net on a specific split (here we'll call only 'train')."""
-    # Dataset and deterministic split
     full_ds = SegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
     g = torch.Generator().manual_seed(SEED)
@@ -59,10 +53,9 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
         num_workers=num_workers, pin_memory=True
     )
 
-    # Build model
+    
     model = build_model(device=device)
 
-    # Better loss function with class balancing
     print("Calculating class weights from training set...")
     all_masks = []
     for i in range(len(train_ds)):
@@ -85,27 +78,25 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
     best_loss = float('inf')
     epochs_no_improve = 0
 
-    # Checkpoint pathing
     os.makedirs(scripts_dir, exist_ok=True)
     ckpt_path = os.path.join(scripts_dir, 'unet_train.pth')
     final_path = os.path.join(scripts_dir, 'unet_train.pth')
 
-    # Training loop
     for epoch in range(1, num_epochs + 1):
-        # — Training —
+        
         model.train()
         running_train = 0.0
         for imgs, masks in train_loader:
             imgs, masks = imgs.to(device), masks.to(device)
             optimizer.zero_grad()
-            outputs = model(imgs)  # (B, C, H, W)
-            loss = criterion(outputs, masks)  # masks are (B, H, W) with class indices
+            outputs = model(imgs)  
+            loss = criterion(outputs, masks)  
             loss.backward()
             optimizer.step()
             running_train += loss.item() * imgs.size(0)
         train_loss = running_train / len(train_loader.dataset)
 
-        # — Validation —
+        
         model.eval()
         running_val = 0.0
         with torch.no_grad():
@@ -117,7 +108,7 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
         print(f"[train] Epoch {epoch:02d}/{num_epochs}  "
               f"Train: {train_loss:.4f}  Val: {val_loss:.4f}")
 
-        # — Early stopping & checkpointing —
+        
         if val_loss < best_loss:
             best_loss = val_loss
             best_wts = copy.deepcopy(model.state_dict())
@@ -130,10 +121,8 @@ def train_split(base_dir: str, split_name: str, scripts_dir: str):
                 print(f"  → No improvement for {early_stop_patience} epochs; stopping.")
                 break
 
-        # Step scheduler every epoch
         scheduler.step()
 
-    # Finalize
     torch.save(best_wts, final_path)
     print(f"[train] Training complete. Final weights saved to {final_path}")
 
@@ -142,7 +131,6 @@ def main():
     base_dir = os.path.join(PROJECT_ROOT, 'dataset')
     scripts_dir = os.path.join(PROJECT_ROOT, 'scripts')
 
-    # Train only on the original training set
     train_split(base_dir, 'train', scripts_dir)
 
 
