@@ -49,7 +49,7 @@ def train_model(data_yaml, save_path, epochs=100, imgsz=640, batch=8, device="0"
         print(f"❌ Data YAML file not found: {data_yaml}")
         return False
 
-    print(f"🚀 Starting training with {base_model}")
+    print(f" Starting training with {base_model}")
     print(f"   - Data: {data_yaml}")
     print(f"   - Epochs: {epochs}")
     print(f"   - Image size: {imgsz}")

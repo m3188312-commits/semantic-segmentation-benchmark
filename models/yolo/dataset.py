@@ -4,8 +4,8 @@ from pathlib import Path
 import yaml
 from tqdm import tqdm
 
-# === CONFIGURATION ===
-ROOT_DIR    = Path(__file__).parent.parent.parent / "dataset"  # Fix path to work from yolo directory
+
+ROOT_DIR    = Path(__file__).parent.parent.parent / "dataset"  
 TOLERANCE   = 8                # color tolerance per channel (tight to catch subtle shades)
 MIN_AREA_PX = 10               # keep tiny regions
 MAX_PTS     = 1000             # cap polygon vertices to avoid pathological files
@@ -17,8 +17,7 @@ with open(Path(__file__).parent / "classes.yaml", "r") as f:
     cfg = yaml.safe_load(f)
 
 names = cfg["names"]
-mcm   = cfg["mask_color_map"]  # class name -> "R,G,B"
-# ID order follows 'names'
+mcm   = cfg["mask_color_map"]  
 color_map = {i: tuple(map(int, mcm[n].split(","))) for i, n in enumerate(names)}
 
 def build_mask_index(mask_dir: Path):
@@ -45,7 +44,7 @@ def simplify_if_needed(cnt, max_pts=MAX_PTS):
 
 def process_split(split_name):
     split_dir = ROOT_DIR / split_name
-    img_dir   = split_dir / "image"   # your structure (we'll address training separately)
+    img_dir   = split_dir / "image"   
     mask_dir  = split_dir / "mask"
     label_dir = split_dir / "labels"
     label_dir.mkdir(exist_ok=True)
@@ -83,14 +82,14 @@ def process_split(split_name):
         polygons = []
 
         for cls_id, rgb in color_map.items():
-            # OpenCV is BGR; we tolerance-match around target
+            
             bgr_target = (rgb[2], rgb[1], rgb[0])
             lb = np.clip(np.array(bgr_target) - TOLERANCE, 0, 255).astype(np.uint8)
             ub = np.clip(np.array(bgr_target) + TOLERANCE, 0, 255).astype(np.uint8)
 
             bin_mask = cv2.inRange(mask, lb, ub)
 
-            # Capture maximum detail: keep all points; external contours only (YOLO polygons don't support holes)
+            
             contours, _ = cv2.findContours(bin_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
             for cnt in contours:
@@ -111,7 +110,7 @@ def process_split(split_name):
 
                 polygons.append((cls_id, pts.tolist()))
 
-        # Write YOLO label file (even if empty -> explicit)
+        
         label_path = label_dir / (stem + ".txt")
         with open(label_path, "w") as fout:
             for cid, poly in polygons:

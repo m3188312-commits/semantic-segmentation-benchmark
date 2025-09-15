@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-U-Net Evaluation Script (mirroring DeepLab’s pipeline)
+U-Net Evaluation Script
 
 Usage:
   python models/unet_no_patches/eval.py
@@ -19,21 +19,15 @@ from sklearn.metrics import precision_recall_fscore_support
 import torch
 from torchvision import transforms as T
 
-# ─── Ensure project root on PYTHONPATH ─────────────────────────
 SCRIPT_DIR   = os.path.dirname(__file__)
-# Go up two levels: models/unet_no_patches -> models -> project root
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
-# ────────────────────────────────────────────────────────────────
-# ────────────────────────────────────────────────────────────────
 
 from models.unet_no_patches.dataset import rgb_to_mask, CLASS_RGB
 from models.unet_no_patches.model import build_pretrained_unet
 
-# Class labels (optional custom names)
 CLASS_NAMES = ['Unknown','Artificial','Woodland','Arable','Frygana','Bareland','Water','Permanent']
 
-# Checkpoint filenames per split
 WEIGHTS = {
     'train':  'unet_train.pth',
     'lowres': 'unet_train.pth',
@@ -48,7 +42,6 @@ TF = T.Compose([
 
 
 def list_files(directory: str):
-    """Collect and sort image files in a directory."""
     patterns = ['*.png', '*.jpg', '*.jpeg']
     files = []
     for p in patterns:
@@ -57,7 +50,6 @@ def list_files(directory: str):
 
 
 def predict_split(model, img_dir: str, out_dir: str, single_image: str = None):
-    """Generate and save color-coded mask predictions."""
     if single_image:
         paths = [os.path.join(img_dir, single_image)]
     else:
@@ -71,9 +63,7 @@ def predict_split(model, img_dir: str, out_dir: str, single_image: str = None):
             img = Image.open(p).convert('RGB')
             inp = TF(img).unsqueeze(0).to(DEVICE)
             out = model(inp)
-            # UNet returns tensor directly, not dict
             pred = out[0].argmax(0).cpu().numpy()
-            # Colorize
             h, w = pred.shape
             vis = np.zeros((h, w, 3), dtype=np.uint8)
             for cls_idx, rgb in inv_map.items():
@@ -144,7 +134,7 @@ def main():
         if args.model_path:
             weights_path = args.model_path
         else:
-            # Look for weights in scripts folder
+            
             weights_path = os.path.join(PROJECT_ROOT, 'scripts', WEIGHTS.get(split, 'unet_train.pth'))
         
         if not os.path.exists(weights_path):
@@ -186,14 +176,13 @@ def main():
             res = evaluate_split(pred_dir, img_dir, mask_dir)
             results[split] = res
             
-            # Print metrics to terminal
             print(f"\n📊 Metrics for '{split}':")
             print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
             print('-'*30)
             for i, name in enumerate(CLASS_NAMES):
                 print(f"{name:<12}{res['p'][i]:6.3f}{res['r'][i]:6.3f}{res['f1'][i]:6.3f}")
     
-    # Print summary if multiple splits
+    
     if len(results) > 1:
         print(f"\n📋 SUMMARY:")
         for split, res in results.items():

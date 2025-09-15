@@ -10,12 +10,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim.lr_scheduler import StepLR
 
-# Absolute imports from the deeplab package
+
 from models.deeplab.dataset import SemanticSegmentationDataset
 from models.deeplab.model   import build_model
 
 # ─── Configuration ──────────────────────────────────
-device              = torch.device('cuda', index=0)  # enforce GPU
+device              = torch.device('cuda', index=0)  
 batch_size          = 4
 num_epochs          = 80
 early_stop_patience = 10
@@ -25,7 +25,6 @@ num_workers         = 0
 # ────────────────────────────────────────────────────
 
 def train_split(base_dir, split_name, scripts_dir):
-    # Prepare datasets and loaders
     full_ds = SemanticSegmentationDataset(base_dir, split_name)
     n_train = int(len(full_ds) * train_val_split)
     train_ds, val_ds = random_split(full_ds, [n_train, len(full_ds) - n_train])
@@ -103,7 +102,6 @@ def main():
     base        = os.path.join(root, 'dataset')
     scripts_dir = os.path.join(root, 'scripts')
 
-    # Train only on the original training set
     train_split(base, 'train', scripts_dir)
 
 if __name__ == '__main__':

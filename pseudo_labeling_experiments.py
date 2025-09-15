@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Pseudo-Labeling Experiments for Semantic Segmentation
 Runs 18 training/evaluation cases: 3 K values × 3 N values × 2 variants
@@ -35,9 +34,9 @@ TEST_MASKS_DIR = Path("dataset/test/mask")
 
 UNLABELED_IMAGES_DIR = Path("data/unlabeled")
 PSEUDO_MASKS_DIRS = {
-    2: Path("masks_agree2"),
-    3: Path("masks_agree3"),
-    4: Path("masks_agree4")
+    2: Path("data/pseudo_masks/masks_agree2"),
+    3: Path("data/pseudo_masks/masks_agree3"),
+    4: Path("data/pseudo_masks/masks_agree4")
 }
 PSEUDO_IMAGES_DIRS = {
     2: Path("data/pseudo_images/agreement_2"),
@@ -45,16 +44,24 @@ PSEUDO_IMAGES_DIRS = {
     4: Path("data/pseudo_images/agreement_4")
 }
 
+<<<<<<< HEAD
 # Training parameters (match deeplab/train.py)
 DEVICE = torch.device('cuda', index=0)  # enforce GPU
+=======
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 NUM_CLASSES = 8
 IMAGE_SIZE = (512, 512)
 BATCH_SIZE = 4
 LEARNING_RATE = 1e-4
+<<<<<<< HEAD
 NUM_EPOCHS = 80
 EARLY_STOP_PATIENCE = 10
+=======
+NUM_EPOCHS = 50
+EARLY_STOP_PATIENCE = 10  
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 
-# Class mapping
 CLASS_RGB = {
     (155, 155, 155): 0,  # Unknown
     (226, 169, 41):   1,  # Artificial Land
@@ -66,9 +73,12 @@ CLASS_RGB = {
     (255, 255, 0):    7,  # Permanent Cultivation
 }
 
+<<<<<<< HEAD
 # ============================================================================
 # DATA UTILITIES
 # ============================================================================
+=======
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 
 def rgb_to_class_id(rgb_mask: np.ndarray) -> np.ndarray:
     """Convert RGB mask to class ID mask."""
@@ -82,8 +92,11 @@ def rgb_to_class_id(rgb_mask: np.ndarray) -> np.ndarray:
             return rgb_mask.astype(np.uint8)
         class_mask[matches] = class_id
 
+<<<<<<< HEAD
     return class_mask
 
+=======
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 class SegmentationDataset(Dataset):
     """Dataset for semantic segmentation."""
 
@@ -106,20 +119,40 @@ class SegmentationDataset(Dataset):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
+<<<<<<< HEAD
         image = Image.open(self.image_paths[idx]).convert('RGB')
         image_tensor = self.transform(image)
 
         mask = Image.open(self.mask_paths[idx])
+=======
+        
+        image = Image.open(self.image_paths[idx]).convert('RGB')
+        image_tensor = self.transform(image)
+        
+        
+        mask_path = self.mask_paths[idx]
+        mask = Image.open(mask_path)
+        
+        
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
         if mask.mode != 'RGB':
             mask = mask.convert('RGB')
         mask = mask.resize(IMAGE_SIZE, resample=Image.NEAREST)
         mask_array = np.array(mask)
+<<<<<<< HEAD
 
+=======
+        
+        
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
         class_mask = rgb_to_class_id(mask_array)
         mask_tensor = torch.from_numpy(class_mask.astype(np.int64))
 
+<<<<<<< HEAD
         return image_tensor, mask_tensor
 
+=======
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 def build_deeplab_model(num_classes: int = NUM_CLASSES):
     """Build DeepLab model for semantic segmentation."""
     from torchvision.models.segmentation import deeplabv3_resnet50
@@ -128,16 +161,28 @@ def build_deeplab_model(num_classes: int = NUM_CLASSES):
     model.classifier[4] = nn.Conv2d(256, num_classes, kernel_size=1)
     model.aux_classifier[4] = nn.Conv2d(256, num_classes, kernel_size=1)
 
+<<<<<<< HEAD
     return model
+=======
+
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 
 def get_pseudo_mask_coverage(mask_path: Path) -> float:
     """Calculate percentage of non-unknown pixels in pseudo-mask."""
     try:
+<<<<<<< HEAD
+=======
+        
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
         mask_rgb = np.array(Image.open(mask_path).convert('RGB'))
         class_mask = rgb_to_class_id(mask_rgb)
 
         total_pixels = class_mask.size
+<<<<<<< HEAD
         unknown_pixels = np.sum(class_mask == 0)
+=======
+        unknown_pixels = np.sum(class_mask == 0)  
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
         coverage = (total_pixels - unknown_pixels) / total_pixels
         return coverage
     except Exception as e:
@@ -154,6 +199,10 @@ def select_top_k_pseudo_images(K: int, N: int) -> List[str]:
         image_id = mask_file.name.split('_')[0]
         coverage = get_pseudo_mask_coverage(mask_file)
         coverages.append((image_id, coverage))
+<<<<<<< HEAD
+=======
+    
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 
     coverages.sort(key=lambda x: (-x[1], x[0]))
     selected = [image_id for image_id, _ in coverages[:K]]
@@ -208,6 +257,7 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0, pin_memory=True)
 
     model = build_deeplab_model(NUM_CLASSES).to(DEVICE)
+<<<<<<< HEAD
     criterion = nn.CrossEntropyLoss().to(DEVICE)
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
     scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=15, gamma=0.5)
@@ -216,6 +266,18 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
     patience_counter = 0
     best_model_state = None
 
+=======
+    criterion = nn.CrossEntropyLoss(ignore_index=255)  # Ignore padding
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    
+    
+    best_loss = float('inf')
+    patience_counter = 0
+    best_model_state = None
+    
+    
+    model.train()
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
     for epoch in range(num_epochs):
         model.train()
         epoch_loss = 0.0
@@ -224,7 +286,12 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
         for images, masks in dataloader:
             images, masks = images.to(DEVICE), masks.to(DEVICE)
             optimizer.zero_grad()
+<<<<<<< HEAD
             outputs = model(images)['out']
+=======
+            
+            outputs = model(images)['out']  
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
             loss = criterion(outputs, masks)
             loss.backward()
             optimizer.step()
@@ -232,8 +299,14 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
             num_batches += 1
 
         avg_loss = epoch_loss / num_batches
+<<<<<<< HEAD
         logger.info(f"  Epoch {epoch+1}/{num_epochs}, Loss: {avg_loss:.4f}")
 
+=======
+        logger.info(f"  Epoch {epoch+1}/{num_epochs} completed. Average Loss: {avg_loss:.4f}")
+        
+        
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
         if avg_loss < best_loss:
             best_loss = avg_loss
             patience_counter = 0
@@ -243,9 +316,14 @@ def train_model(image_paths: List[Path], mask_paths: List[Path], run_id: str,
             if patience_counter >= early_stop_patience:
                 logger.info(f"  Early stopping at epoch {epoch+1}")
                 break
+<<<<<<< HEAD
 
         scheduler.step()
 
+=======
+    
+    
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
 
@@ -287,20 +365,42 @@ def create_test_loader(batch_size: int = BATCH_SIZE) -> DataLoader:
     test_dataset = SegmentationDataset(list(image_paths), list(mask_paths))
     return DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0, pin_memory=True)
 
+<<<<<<< HEAD
 # ============================================================================
 # MAIN
 # ============================================================================
+=======
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
 
 def main():
     parser = argparse.ArgumentParser(description="Run pseudo-labeling experiments")
     parser.add_argument("--output", type=str, default="experiment_results.csv", help="Output CSV file")
     args = parser.parse_args()
+<<<<<<< HEAD
 
     logger.info(f"Using device: {DEVICE}")
 
     test_loader = create_test_loader(BATCH_SIZE)
     results = []
 
+=======
+    
+    
+    num_epochs = args.epochs
+    batch_size = args.batch_size
+    learning_rate = args.lr
+    
+    logger.info(f"Starting experiments with {num_epochs} epochs, batch_size={batch_size}, lr={learning_rate}")
+    logger.info(f"Using device: {DEVICE}")
+    
+    
+    test_loader = create_test_loader(batch_size)
+    
+    # Results storage
+    results = []
+    
+    
+>>>>>>> 9b3e60901f105ad75fd54af8c76f45266a9effa2
     K_values = [10, 50, 100]
     N_values = [2, 3, 4]
     variants = ["no-remove", "remove-unknown"]

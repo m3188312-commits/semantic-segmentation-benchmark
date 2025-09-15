@@ -32,7 +32,6 @@ import torch
 from torchvision import transforms as T
 
 
-# Ensure project root on PYTHONPATH
 SCRIPT_DIR   = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
 sys.path.insert(0, PROJECT_ROOT)
@@ -54,7 +53,6 @@ WEIGHTS = {
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def predict_split(model, img_dir, out_dir, single_image=None):
-    """Run DeepLab on images and save RGB masks."""
     if single_image:
         paths = [os.path.join(img_dir, single_image)]
     else:
@@ -128,20 +126,16 @@ def main():
     do_pred = args.predict or not args.evaluate
     do_eval = args.evaluate or not args.predict
 
-    # Determine which splits to process
     if args.single_image:
         splits = [args.single_image[0]]
     else:
-        # Run on train, test and lowres sets by default
         splits = ['train', 'test', 'lowres']
 
     results = {}
     for split in splits:
-        # Determine model weights path
         if args.model_path:
             weights_path = args.model_path
         else:
-            # Look for weights in scripts folder
             weights_path = os.path.join(PROJECT_ROOT, 'scripts', WEIGHTS.get(split, 'deeplab_train.pth'))
         
         if not os.path.exists(weights_path):
@@ -154,7 +148,6 @@ def main():
                         print(f"  - {f}")
             continue
             
-        # load model
         print(f"\n=== [{split.upper()}] Loading {os.path.basename(weights_path)} ===")
         model = build_model(DEVICE)
         model.load_state_dict(torch.load(weights_path, map_location=DEVICE))
@@ -166,7 +159,6 @@ def main():
         pred_dir = os.path.join(PROJECT_ROOT,'predictions','deeplab',split)
         
         if args.single_image:
-            # only run for that split
             if split == args.single_image[0]:
                 if do_pred:
                     predict_split(model,img_dir,pred_dir,single_image=args.single_image[1])
@@ -186,14 +178,12 @@ def main():
                 res = evaluate_split(pred_dir,img_dir,mask_dir)
                 results[split] = res
                 
-                # Print metrics to terminal
                 print(f"\n📊 Metrics for '{split}':")
                 print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
                 print('-'*30)
                 for i,n in enumerate(CLASS_NAMES): 
                     print(f"{n:<12}{res['p'][i]:6.3f}{res['r'][i]:6.3f}{res['f1'][i]:6.3f}")
     
-    # Print summary if multiple splits
     if len(results) > 1:
         print(f"\n📋 SUMMARY:")
         for split, res in results.items():
