@@ -1,111 +1,63 @@
-# Semantic Segmentation Benchmark
+# Semantic Segmentation Benchmark — Semi-Supervised Satellite Imagery 🛰️
 
-Semantic segmentation project comparing 4 models (U-Net, DeepLab, YOLO, Random Forest) on satellite imagery for land use classification.
+> Exploring semi-supervised learning for **semantic segmentation of aerial/satellite data**.  
+> Benchmarks include U-Net, DeepLabV3, YOLO-Seg, and Residual Fusion (RF) models under a **pseudo-labeling pipeline**.
 
-## Models
-- **U-Net** - ResNet34 encoder
-- **DeepLab** - v3+ architecture  
-- **YOLO** - v8 segmentation
-- **Random Forest** - Traditional ML baseline
+---
 
-## Setup
+## 🔥 Highlights
+- **Multiple model families** benchmarked under the same training/eval protocol.  
+- **Semi-supervised pipeline** with pseudo-label generation, consensus filtering, and retraining.  
+- **Reproducible experiments**: deterministic loaders, fixed configs, environment pinned.  
+- Results reported with **F1 score** under varying parameters.
+
+---
+
+## 📊 Results
+
+We investigate the effect of:
+- **K** = number of pseudo-labeled images added, and  
+- **N** = agreement level between models for accepting a pseudo-label,  
+
+under two variants: **no-remove** (all pseudo-labels kept) and **remove-unknown** (filter uncertain pixels).
+
+### Heatmaps — F1 by K and N
+
+<p align="center">
+<img src="assets/f1_heatmap.png" alt="F1 Heatmaps" width="800"/>
+</p>
+
+**Observation:**  
+- With *no-remove*, higher agreement (N=4) yields the best F1 (0.674).  
+- With *remove-unknown*, F1 peaks at K=100, N=2 (0.673), though performance is more volatile.  
+- Gains over supervised-only baseline (~0.660 F1) are modest but consistent.
+
+---
+
+### Line plots — Effect of K on F1
+
+<p align="center">
+<img src="assets/k_effect.png" alt="K vs F1" width="800"/>
+</p>
+
+**Observation:**  
+- Increasing K does not guarantee improvement; the effect depends on agreement level (N).  
+- Best trade-offs occur at small K with stricter agreement (N=4).  
+- Variants diverge: *no-remove* is stable with N=4, while *remove-unknown* favors low agreement and high K.
+
+---
+
+## 🚀 Quickstart
 
 ```bash
+# 1. Clone & env
 git clone https://github.com/aggelosntou/semantic-segmentation-benchmark.git
 cd semantic-segmentation-benchmark
-python -m venv venv
-source venv/bin/activate
+conda create -n seg python=3.11 -y && conda activate seg
 pip install -r requirements.txt
-```
 
-For GPU training:
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# 2. Train (example: U-Net)
+python train.py --config configs/unet.yaml
 
-
-## Training
-
-Train individual models:
-python models/#model/train.py
-
-## Semi-Supervised Learning (Pseudo-Labeling)
-
-This project includes a complete semi-supervised learning pipeline using model agreement for pseudo-labeling.
-
-### Pipeline Overview
-1. **Generate predictions** from 4 trained models on 100 unlabeled images
-2. **Build consensus masks** where pixels are labeled if N≥2,3,4 models agree
-3. **Create two image variants**: original and gray-painted (unknown regions grayed out)
-4. **Train DeepLab** with different pseudo-labeling strategies
-
-### Run Experiments
-python run_experiments.py
-
-
-This runs 18 pseudo-labeling experiments + baseline with combinations of:
-- **Pseudo images**: 10, 50, 100 (selected by highest coverage)
-- **Agreement levels**: 2, 3, 4 models must agree
-- **Image variants**: original vs gray-painted unknown regions
-
-Results saved to `experiment_results.csv` and models to `checkpoints/`.
-
-### Manual Pipeline Steps
-If you want to run the pipeline manually:
-
-1. **Generate model predictions**:
-```bash
-python scripts/infer_deeplab.py
-python scripts/infer_unet.py  
-python scripts/infer_yolo.py
-python scripts/infer_rf.py
-```
-
-2. **Build consensus masks**:
-python scripts/build_consensus.py
-
-3. **Run experiments**:
-python pseudo_labeling_experiments.py
-
-## Evaluation
-
-Evaluate models:
-```bash
-python models/unet_no_patches/eval.py
-python models/deeplab/eval.py
-python models/yolo/eval.py
-python models/random_forest/eval.py
-```
-
-## Dataset Structure
-
-```
-dataset/
-├── train/          # 90 labeled training images + masks
-├── test/           # 23 test images + masks
-└── lowres/         # Low resolution version
-
-data/
-├── unlabeled/      # 100 unlabeled images
-└── pseudo_images/  # Gray-painted versions by agreement level
-
-masks_agree{2,3,4}/ # Consensus masks (agreement ≥ N models)
-```
-
-## Classes (8 total)
-
-1. Unknown (155,155,155)
-2. Artificial Land (226,169,41)  
-3. Woodland (60,16,152)
-4. Arable Land (132,41,246)
-5. Frygana (0,255,0)
-6. Bareland (255,255,255)
-7. Water (0,0,255)
-8. Permanent Cultivation (255,255,0)
-
-## Key Features
-
-- All images standardized to 512×512
-- Early stopping to prevent overfitting
-- CUDA support for GPU training
-- Comprehensive pseudo-labeling pipeline
-- Automated evaluation metrics (precision, recall, F1)
-
+# 3. Evaluate
+python eval.py --ckpt runs/unet/best.pt --split val
