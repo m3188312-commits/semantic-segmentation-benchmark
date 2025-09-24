@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <b>Left:</b> Input Tile • <b>Middle:</b> Ground Truth • <b>Right:</b> DeepLabV3 Prediction
+  <b>Left:</b> Satellite Image • <b>Middle:</b> Ground Truth • <b>Right:</b> DeepLabV3 Prediction
 </p>
 
 
