@@ -14,6 +14,7 @@
 ---
 
 ## 📊 Results
+
 <p align="center">
   <img src="dataset/test/image/0005.jpg" alt="Input image" width="250"/>
   <img src="dataset/test/mask/0005.png" alt="Ground truth" width="250"/>
@@ -23,6 +24,20 @@
 <p align="center">
   <b>Left:</b> Satellite Image • <b>Middle:</b> Ground Truth • <b>Right:</b> DeepLabV3 Prediction
 </p>
+
+---
+
+### Quantitative Comparisons
+
+<p align="center">
+  <img src="class_comparison.png" alt="Class-wise comparison" width="450"/>
+  <img src="model_comparison.png" alt="Model comparison" width="450"/>
+</p>
+
+<p align="center">
+  <b>Left:</b> Class-wise F1 Comparison • <b>Right:</b> Model Performance Comparison
+</p>
+
 
 
 We investigate the effect of:
