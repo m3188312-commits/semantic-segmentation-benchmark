@@ -14,6 +14,16 @@
 ---
 
 ## 📊 Results
+<p align="center">
+  <img src="dataset/test/image/0005.jpg" alt="Input image" width="250"/>
+  <img src="dataset/test/mask/0005.png" alt="Ground truth" width="250"/>
+  <img src="predictions/deeplab/test/0005.png" alt="Prediction" width="250"/>
+</p>
+
+<p align="center">
+  <b>Left:</b> Input Tile • <b>Middle:</b> Ground Truth • <b>Right:</b> DeepLabV3 Prediction
+</p>
+
 
 We investigate the effect of:
 - **K** = number of pseudo-labeled images added, and  
