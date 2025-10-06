@@ -1,21 +1,3 @@
-"""
-Usage examples:
-
-# Full pipeline (predict + evaluate) on test set
-python models/random_forest/eval.py
-
-# Evaluate only (use existing predictions)
-python models/random_forest/eval.py --evaluate
-
-# Predict only (generate segmentations)
-python models/random_forest/eval.py --predict
-
-# Single image (predict + evaluate)
-python models/random_forest/eval.py --single-image test 0000.jpg
-
-# Use custom model weights
-python models/random_forest/eval.py --evaluate --model_path path/to/weights.pkl
-"""
 import os
 import sys
 import argparse
@@ -23,7 +5,7 @@ import numpy as np
 from glob import glob
 from PIL import Image
 from sklearn.metrics import precision_recall_fscore_support
-
+from openpyxl import Workbook, load_workbook
 
 SCRIPT_DIR = os.path.dirname(__file__)
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
@@ -73,7 +55,6 @@ def predict_and_save(clf, img_dir: str, out_dir: str, single_image: str = None):
 
 
 def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_image: str = None):
-   
     if single_image is None:
         _, true_masks = load_dataset(gt_img_dir, gt_mask_dir)
         pred_paths = sorted(glob(os.path.join(pred_dir, '*.png')))
@@ -103,6 +84,7 @@ def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_imag
             raise FileNotFoundError(f"No prediction found for {single_image} in {pred_dir}")
         pred_mask = rgb_to_mask(np.array(Image.open(pred_path).convert('RGB')))
         y_pred = pred_mask.flatten()
+
     p, r, f1, _ = precision_recall_fscore_support(
         y_true, y_pred,
         labels=list(range(len(CLASS_NAMES))),
@@ -111,34 +93,13 @@ def evaluate_split(pred_dir: str, gt_img_dir: str, gt_mask_dir: str, single_imag
     return {'p': p, 'r': r, 'f1': f1}
 
 
-
-
-
 def main():
-    parser = argparse.ArgumentParser(
-        description="RF evaluation: predict+evaluate with terminal output."
-    )
-    parser.add_argument(
-        "--evaluate",
-        action="store_true",
-        help="Skip prediction; only compute metrics."
-    )
-    parser.add_argument(
-        "--predict",
-        action="store_true",
-        help="Only generate segmentations."
-    )
-    parser.add_argument(
-        "--single-image",
-        nargs=2,
-        metavar=('SPLIT', 'IMAGE'),
-        help="Evaluate a single IMAGE from SPLIT (train, lowres, test)."
-    )
-    parser.add_argument(
-        "--model_path",
-        type=str,
-        help="path to model weights file"
-    )
+    parser = argparse.ArgumentParser(description="RF evaluation: predict+evaluate with terminal output.")
+    parser.add_argument("--evaluate", action="store_true", help="Skip prediction; only compute metrics.")
+    parser.add_argument("--predict", action="store_true", help="Only generate segmentations.")
+    parser.add_argument("--single-image", nargs=2, metavar=('SPLIT', 'IMAGE'),
+                        help="Evaluate a single IMAGE from SPLIT (train, lowres, test).")
+    parser.add_argument("--model_path", type=str, help="path to model weights file")
     args = parser.parse_args()
     
     do_pred = args.predict or not args.evaluate
@@ -152,59 +113,18 @@ def main():
         splits = [args.single_image[0]]
     else:
         splits = ['train', 'test', 'lowres']
-
     
-    if args.single_image:
-        split, img_name = args.single_image
-        if split not in ['train', 'lowres', 'test']:
-            print(f"Invalid split '{split}'. Choose from train, lowres, test.")
-            sys.exit(1)
-            
-        
-        if args.model_path:
-            model_path = args.model_path
-        else:
-            
-            model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
-        
-        if not os.path.exists(model_path):
-            print(f"❌ Model weights not found at: {model_path}")
-            print("Available files in scripts folder:")
-            if os.path.exists(scripts_dir):
-                for f in os.listdir(scripts_dir):
-                    if f.endswith('.pkl'):
-                        print(f"  - {f}")
-            sys.exit(1)
-            
-        clf = load_model(model_path)
-        img_dir = os.path.join(data_root, split, 'image')
-        mask_dir = os.path.join(data_root, split, 'mask')
-        if not os.path.isdir(mask_dir):
-            mask_dir = os.path.join(data_root, split, 'masks')
-        pred_dir = os.path.join(preds_root, split)
-        
-        if do_pred:
-            predict_and_save(clf, img_dir, pred_dir, single_image=img_name)
-        if do_eval:
-            metrics = evaluate_split(pred_dir, img_dir, mask_dir, single_image=img_name)
-            print(f"\n📊 Metrics for '{img_name}' in split '{split}':")
-            print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
-            print('-'*30)
-            for idx, name in enumerate(CLASS_NAMES):
-                print(f"{name:<12}{metrics['p'][idx]:6.3f}{metrics['r'][idx]:6.3f}{metrics['f1'][idx]:6.3f}")
-        return
-
     results = {}
     for split in splits:
         if args.model_path:
             model_path = args.model_path
         else:
             model_path = os.path.join(scripts_dir, 'rf_model_train.pkl')
-        
+
         if not os.path.exists(model_path):
             print(f"❌ Model weights not found at: {model_path}")
-            print("Available files in scripts folder:")
             if os.path.exists(scripts_dir):
+                print("Available files in scripts folder:")
                 for f in os.listdir(scripts_dir):
                     if f.endswith('.pkl'):
                         print(f"  - {f}")
@@ -216,15 +136,15 @@ def main():
         if not os.path.isdir(mask_dir):
             mask_dir = os.path.join(data_root, split, 'masks')
         pred_dir = os.path.join(preds_root, split)
-
+        
         if do_pred:
-            print(f"Generating predictions for '{split}' → {pred_dir}")
+            print(f"Generating predictions for '{split}' -> {pred_dir}")
             predict_and_save(clf, img_dir, pred_dir)
         if do_eval:
             print(f"Computing metrics for '{split}'")
             res = evaluate_split(pred_dir, img_dir, mask_dir)
             results[split] = res
-            
+
             print(f"\n📊 Metrics for '{split}':")
             print(f"{'Class':<12}{'P':>6}{'R':>6}{'F1':>6}")
             print('-'*30)
@@ -235,6 +155,58 @@ def main():
         print(f"\n📋 SUMMARY:")
         for split, res in results.items():
             print(f"{split}: P={res['p'].mean():.3f}, R={res['r'].mean():.3f}, F1={res['f1'].mean():.3f}")
+
+    if results:
+        if args.model_path:
+            model_name = os.path.basename(args.model_path)
+        else:
+            model_name = "rf_model_train.pkl"
+        save_summary_to_excel(results, model_name)
+
+
+def save_summary_to_excel(results, model_name):
+    out_file = "scripts/rf_results_detailed.xlsx"
+
+    # Extract percent from filename if possible
+    percent = "N/A"
+    if "pct" in model_name:
+        try:
+            percent = model_name.split("train_")[1].split("pct")[0] + "%"
+        except:
+            percent = "N/A"
+
+    # If file exists, open it. Otherwise, create new.
+    if os.path.exists(out_file):
+        wb = load_workbook(out_file)
+        ws = wb.active
+    else:
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["Percent", "Split", "Class", "Precision", "Recall", "F1"])
+
+    for split, res in results.items():
+        for idx, class_name in enumerate(CLASS_NAMES):
+            ws.append([
+                percent,
+                split.capitalize(),
+                class_name,
+                float(res['p'][idx]),
+                float(res['r'][idx]),
+                float(res['f1'][idx])
+            ])
+        ws.append([
+            percent,
+            split.capitalize(),
+            "SUMMARY",
+            float(res['p'].mean()),
+            float(res['r'].mean()),
+            float(res['f1'].mean())
+        ])
+        ws.append([])  # empty row
+
+    wb.save(out_file)
+    print(f"[Excel] Results saved → {out_file}")
+
 
 if __name__ == '__main__':
     main()
