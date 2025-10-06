@@ -45,14 +45,23 @@ def load_dataset(img_dir: str, mask_dir: str):
     images, masks = [], []
     for ip, mp in zip(img_paths, mask_paths):
         img = io.imread(ip)
-        if img.ndim == 2:
+        if img.ndim == 2: #grayscale img
             img = color.gray2rgb(img)
+
         mask_rgb = io.imread(mp)
+        
+        #fixing for the mask to be RGB 
+        if mask_rgb.ndim == 2: # grayscale mask
+            mask_rgb = color.gray2rgb(mask_rgb)
+        elif mask_rgb.shape[-1] == 4: #RGBA mask
+            mask_rgb = mask_rgb[:, :, :3] #slicing 
+
         mask = rgb_to_mask(mask_rgb)
+
         images.append(img)
         masks.append(mask)
-    return images, masks
 
+    return images, masks
 
 def extract_features(img: np.ndarray) -> np.ndarray:
     """
